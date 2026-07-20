@@ -6,6 +6,8 @@
     <title>Parabolic Lines SVG Generator</title>
     <!-- MP4 Muxer for Offline 1080p 60fps Export -->
     <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+    <!-- GIF.js for 50fps GIF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
     <style>
         :root {
             --bg: #1e1e1e;
@@ -131,7 +133,19 @@
             <input type="checkbox" id="animatePhase">
             Play All Animations
         </label>
-        <button id="exportVidBtn" class="btn-video" style="margin-top: 5px;">Export Looping Video (1080p 60FPS)</button>
+
+        <!-- New Trail Features -->
+        <div class="control-group" style="margin-top: 10px;">
+            <label for="trailFrames">Motion Trail (Ghosts) <span id="trailFramesVal" class="value-display">0</span></label>
+            <input type="range" id="trailFrames" min="0" max="30" step="1" value="0">
+        </div>
+        <div class="control-group">
+            <label for="trailSpacing">Trail Spacing <span id="trailSpacingVal" class="value-display">1.0</span></label>
+            <input type="range" id="trailSpacing" min="0.1" max="5.0" step="0.1" value="1.0">
+        </div>
+
+        <button id="exportVidBtn" class="btn-video" style="margin-top: 10px;">Export Looping Video (1080p 60FPS)</button>
+        <button id="exportGifBtn" class="btn-video" style="margin-top: 5px; background-color: #9b59b6;">Export Looping GIF (50FPS)</button>
         <button id="exportBtn" style="margin-top: 5px;">Export Image as .SVG</button>
 
         <!-- Core Settings -->
@@ -262,7 +276,7 @@
 
         <div class="control-group" style="margin-top: 10px;">
             <label for="opacityFade">Line End Fade (Opacity) <span id="fadeVal" class="value-display">0.10</span></label>
-            <input type="range" id="opacityFade" min="0.0" max="0.5" step="0.01" value="0.10">
+            <input type="range" id="opacityFade" min="0.0" max="0.5" step="any" value="0.10">
         </div>
 
         <div class="control-group">
@@ -282,7 +296,7 @@
         
         <div class="control-group">
             <label for="highlightIntensity">Highlight Intensity <span id="hIntenVal" class="value-display">0.0</span></label>
-            <input type="range" id="highlightIntensity" min="0.0" max="1.0" step="0.05" value="0.0">
+            <input type="range" id="highlightIntensity" min="0.0" max="1.0" step="any" value="0.0">
         </div>
 
         <div class="control-group">
@@ -333,7 +347,6 @@
     <div class="canvas-container">
         <svg id="drawingCanvas" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>
     </div>
-
     <script>
         const svg = document.getElementById('drawingCanvas');
         let baseLayer; 
@@ -372,6 +385,8 @@
         const bgColor = document.getElementById('bgColor');
         const lineColor = document.getElementById('lineColor');
         const lineWidth = document.getElementById('lineWidth');
+        const trailFrames = document.getElementById('trailFrames');
+        const trailSpacing = document.getElementById('trailSpacing');
         
         // --- PRESET & EXPORT ELEMENTS ---
         const presetSelect = document.getElementById('presetSelect');
@@ -384,6 +399,7 @@
         // --- ANIMATION ELEMENTS ---
         const animatePhase = document.getElementById('animatePhase');
         const exportVidBtn = document.getElementById('exportVidBtn');
+        const exportGifBtn = document.getElementById('exportGifBtn');
 
         // --- DISPLAY & VISIBILITY HOOKS ---
         const linesVal = document.getElementById('linesVal');
@@ -411,6 +427,8 @@
         const fadeVal = document.getElementById('fadeVal');
         const hIntenVal = document.getElementById('hIntenVal');
         const widthVal = document.getElementById('widthVal');
+        const trailFramesVal = document.getElementById('trailFramesVal');
+        const trailSpacingVal = document.getElementById('trailSpacingVal');
 
         const waveParamsControl = document.getElementById('waveParamsControl');
         const flowControls = document.getElementById('flowControls');
@@ -429,12 +447,9 @@
             'angleCount', 'multiAxesCount', 'polygonSides', 'circleStep', 'ellipseRatio', 
             'symmetryCount', 'mirrorSymmetry', 'globalRotation', 'offsetX', 'offsetY', 
             'zoomValue', 'scaleValue', 'lineStyle', 'halftoneSize', 'halftoneFalloff', 'colorAnchor', 'flowPhase', 'flowSpeed',
-            'opacityFade', 'highlightColor', 'highlightIntensity',
+            'opacityFade', 'highlightColor', 'highlightIntensity', 'trailFrames', 'trailSpacing',
             'bgColor', 'lineColor', 'lineWidth', 'animatePhase'
         ];
-
-        // Shared dynamic styling props payload for appendCurve to access safely
-        let currentStyleProps = {};
 
         // --- MATH HELPERS ---
         function lerpColorHex(a, b, amount) {
@@ -447,6 +462,9 @@
                 rb = ab + amount * (bb - ab);
             return '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb | 0).toString(16).slice(1);
         }
+
+        // Shared dynamic property object for appendCurve loop efficiency
+        let dynProps = {};
 
         // --- ANIMATION LOGIC ---
         let isAnimating = false;
@@ -766,6 +784,130 @@
 
         exportVidBtn.addEventListener('click', exportVideo);
 
+        // --- DYNAMIC OFFLINE GIF EXPORT ENGINE ---
+        async function exportGif() {
+            if (isRecording) return;
+            isRecording = true;
+            exportGifBtn.disabled = true;
+
+            let rawWSpeed = parseFloat(animSpeed.value);
+            let rawFSpeed = parseFloat(flowSpeed.value);
+            let wSpeed = Math.abs(rawWSpeed);
+            let fSpeed = Math.abs(rawFSpeed);
+            
+            let isWaveActive = (wSpeed > 0 && waveType.value !== 'none');
+            let isFlowActive = (fSpeed > 0 && lineStyle.value !== 'solid');
+
+            let totalFrames = 300; 
+            let actualWSpeed = 0;
+            let actualFSpeed = 0;
+
+            if (isWaveActive && isFlowActive) {
+                let wFrames = 360 / wSpeed;
+                let fFrames = 100 / fSpeed;
+                if (wFrames > fFrames) {
+                    totalFrames = Math.round(wFrames);
+                    let cycles = Math.round(totalFrames / fFrames) || 1;
+                    actualWSpeed = 360 / totalFrames;
+                    actualFSpeed = (100 * cycles) / totalFrames;
+                } else {
+                    totalFrames = Math.round(fFrames);
+                    let cycles = Math.round(totalFrames / wFrames) || 1;
+                    actualFSpeed = 100 / totalFrames;
+                    actualWSpeed = (360 * cycles) / totalFrames;
+                }
+            } else if (isWaveActive) {
+                totalFrames = Math.round(360 / wSpeed);
+                actualWSpeed = 360 / totalFrames;
+            } else if (isFlowActive) {
+                totalFrames = Math.round(100 / fSpeed);
+                actualFSpeed = 100 / totalFrames;
+            }
+
+            if (rawWSpeed < 0) actualWSpeed *= -1;
+            if (rawFSpeed < 0) actualFSpeed *= -1;
+
+            let currentFrame = 0;
+            let startWPhase = parseFloat(wavePhase.value);
+            let startFPhase = parseFloat(flowPhase.value);
+
+            let gif = new GIF({
+                workers: 4,
+                quality: 10,
+                width: 800, 
+                height: 800,
+                workerScript: URL.createObjectURL(new Blob(["importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');"], { type: 'text/javascript' }))
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 800;
+            canvas.height = 800;
+            const ctx = canvas.getContext('2d');
+
+            function renderGifFrame() {
+                if (currentFrame >= totalFrames) {
+                    exportGifBtn.innerText = "Encoding GIF... (Please wait)";
+                    gif.render();
+                    return;
+                }
+
+                if (isWaveActive) {
+                    wavePhase.value = (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360;
+                }
+                if (isFlowActive) {
+                    flowPhase.value = ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100).toFixed(2);
+                }
+
+                updateDisplays();
+                draw();
+
+                svg.setAttribute('width', '800');
+                svg.setAttribute('height', '800');
+                const serializer = new XMLSerializer();
+                let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(svg);
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                
+                const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                
+                const img = new Image();
+                img.onload = function() {
+                    ctx.fillStyle = bgColor.value;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    URL.revokeObjectURL(url);
+                    
+                    gif.addFrame(canvas, { delay: 20, copy: true });
+                    
+                    exportGifBtn.innerText = `Capturing Frames... ${Math.round((currentFrame / totalFrames) * 100)}%`;
+                    currentFrame++;
+                    
+                    requestAnimationFrame(renderGifFrame);
+                };
+                img.src = url;
+            }
+
+            gif.on('finished', function(blob) {
+                const finalUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = finalUrl;
+                a.download = 'geometrica_loop_50fps.gif';
+                a.click();
+                
+                isRecording = false;
+                exportGifBtn.disabled = false;
+                exportGifBtn.innerText = "Export Looping GIF (50FPS)";
+                if (isAnimating) animationLoop(); 
+            });
+
+            exportGifBtn.innerText = "Initializing GIF Engine...";
+            renderGifFrame();
+        }
+
+        exportGifBtn.addEventListener('click', exportGif);
+
+
         // --- PRESET LOGIC ---
         
         function updatePresetDropdown() {
@@ -872,28 +1014,29 @@
             fadeVal.innerText = parseFloat(opacityFade.value).toFixed(2);
             hIntenVal.innerText = parseFloat(highlightIntensity.value).toFixed(2);
             widthVal.innerText = parseFloat(lineWidth.value).toFixed(1);
+            trailFramesVal.innerText = trailFrames.value;
+            trailSpacingVal.innerText = parseFloat(trailSpacing.value).toFixed(1);
         }
 
         // --- DRAWING ENGINE WITH MASKS & COLORS ---
 
-        function drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase) {
+        function drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, targetLayer, trailIndex) {
             for (let i = 0; i <= steps; i++) {
                 let t = i / steps;
                 let p1x = origin[0] + (end1[0] - origin[0]) * t;
                 let p1y = origin[1] + (end1[1] - origin[1]) * t;
                 let p2x = origin[0] + (end2[0] - origin[0]) * (1 - t);
                 let p2y = origin[1] + (end2[1] - origin[1]) * (1 - t);
-                appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+                appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, targetLayer, trailIndex);
             }
         }
 
-        function appendCurve(x1, y1, x2, y2, color, width, curveAmt, dashStyle, erosionAmt, stepIndex, totalSteps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase) {
+        function appendCurve(x1, y1, x2, y2, color, width, curveAmt, dashStyle, erosionAmt, stepIndex, totalSteps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, targetLayer, trailIndex) {
             
-            // Extract shared dynamic properties
-            let fadeAmt = currentStyleProps.fadeAmt;
-            let hInten = currentStyleProps.hInten;
-            let hColor = currentStyleProps.hColor;
-            let anchor = currentStyleProps.anchor;
+            let fadeAmt = dynProps.fadeAmt;
+            let hInten = dynProps.hInten;
+            let hColor = dynProps.hColor;
+            let anchor = dynProps.anchor;
 
             let d1 = Math.hypot(x1 - cx, y1 - cy);
             let d2 = Math.hypot(x2 - cx, y2 - cy);
@@ -920,7 +1063,6 @@
 
             let phaseRad = wPhase * Math.PI / 180;
             
-            // Reusable math functions for amplitude and coordinate fetching
             function getWaveVal(t) {
                 if (wType === 'none' || wAmp === 0) return 0;
                 let cycle = t * wFreq + (phaseRad / (2 * Math.PI));
@@ -958,7 +1100,6 @@
                 return {x: px, y: py};
             }
 
-            // Spatial erosion mapping limits `u`
             let style = document.getElementById('styleSelect').value;
             let maxDist = r; 
             if (style === 'square_circle' || style === 'hourglass' || style === 'asymmetric_star' || style === 'star_center') {
@@ -987,17 +1128,12 @@
             if (u <= 0.05 && erosionAmt > 0) return; 
             if (u > 1.0) u = 1.0;
 
-            let needsSegments = (hInten > 0 && wType !== 'none' && wAmp > 0) || (fadeAmt > 0);
+            let needsGradient = (fadeAmt > 0 || hInten > 0);
 
-            // ==================
-            // PATH GENERATION
-            // ==================
             if (dashStyle === 'halftone') {
-                // DOT RENDERER
                 let activeDots = Math.max(2, Math.floor(35 * u)); 
                 for (let k = 0; k < activeDots; k++) {
                     let base_t = k / activeDots;
-                    
                     let t_norm = (base_t + fPhase) % 1.0;
                     if (t_norm < 0) t_norm += 1.0;
                     
@@ -1029,132 +1165,87 @@
                         circle.setAttribute('r', dotR.toString());
                         circle.setAttribute('fill', col);
                         circle.setAttribute('opacity', alpha.toString());
-                        baseLayer.appendChild(circle);
+                        targetLayer.appendChild(circle);
                     }
                 }
-            } else if (needsSegments) {
-                // DYNAMIC COLOR/OPACITY SEGMENT RENDERER
-                let actualSteps = Math.max(2, Math.floor(100 * u)); 
-                let targetLayer = baseLayer;
-                let container = null;
-                
-                // If it requires a dash style, generate a dynamic mask matching the curve to clip the segments cleanly
-                if (dashStyle !== 'solid') {
-                    let maskId = 'mask_' + Math.random().toString(36).substr(2, 9);
-                    let mask = document.createElementNS('http://www.w3.org/2000/svg', 'mask');
-                    mask.setAttribute('id', maskId);
-                    
-                    let maskPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    let d = "";
+            } else {
+                let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                let d = "";
+
+                if (wType !== 'none' && wAmp > 0) {
+                    let polySteps = 150; 
+                    let actualSteps = Math.max(2, Math.floor(polySteps * u));
                     for (let k = 0; k <= actualSteps; k++) {
                         let t = (k / actualSteps) * u;
                         let pt = getPt(t, getWaveVal(t));
                         d += (k === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`);
                     }
-                    maskPath.setAttribute('d', d);
-                    maskPath.setAttribute('fill', 'none');
-                    maskPath.setAttribute('stroke', 'white');
-                    maskPath.setAttribute('stroke-width', width.toString());
-                    
-                    if (dashStyle === 'dashed') {
-                        maskPath.setAttribute('stroke-dasharray', '8 6');
-                        maskPath.setAttribute('stroke-dashoffset', (-fPhase * 140).toString()); 
-                    } else if (dashStyle === 'dotted') {
-                        maskPath.setAttribute('stroke-dasharray', '2 6');
-                        maskPath.setAttribute('stroke-linecap', 'round');
-                        maskPath.setAttribute('stroke-dashoffset', (-fPhase * 80).toString()); 
-                    }
-                    mask.appendChild(maskPath);
-                    svg.querySelector('defs').appendChild(mask);
-                    
-                    container = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    container.setAttribute('mask', 'url(#' + maskId + ')');
-                    targetLayer = container;
-                }
-
-                let prevPt = getPt(0, getWaveVal(0));
-                for (let k = 1; k <= actualSteps; k++) {
-                    let t_norm = k / actualSteps;
-                    let t = t_norm * u;
-                    let val = getWaveVal(t);
-                    let currPt = getPt(t, val);
-                    
-                    let alpha = 1.0;
-                    if (fadeAmt > 0) {
-                        if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
-                        else if (t_norm > 1.0 - fadeAmt) alpha = (1.0 - t_norm) / fadeAmt;
-                    }
-                    alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
-
-                    let col = color;
-                    if (hInten > 0) {
-                        let blend = Math.min(1.0, Math.abs(val)) * hInten;
-                        col = lerpColorHex(color, hColor, blend);
-                    }
-
-                    if (alpha > 0.01) {
-                        let line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('x1', prevPt.x.toString());
-                        line.setAttribute('y1', prevPt.y.toString());
-                        line.setAttribute('x2', currPt.x.toString());
-                        line.setAttribute('y2', currPt.y.toString());
-                        line.setAttribute('stroke', col);
-                        line.setAttribute('stroke-width', width.toString());
-                        line.setAttribute('stroke-linecap', 'round'); // prevents tiny segment gaps
-                        line.setAttribute('opacity', alpha.toString());
-                        targetLayer.appendChild(line);
-                    }
-                    prevPt = currPt;
-                }
-                
-                if (container) {
-                    baseLayer.appendChild(container);
-                }
-
-            } else if (wType !== 'none' && wAmp > 0) {
-                // FAST FALLBACK FOR SIMPLE WAVELINES
-                let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                let d = "";
-                let polySteps = 300; 
-                let actualSteps = Math.max(2, Math.floor(polySteps * u));
-                for (let k = 0; k <= actualSteps; k++) {
-                    let t = (k / actualSteps) * u;
-                    let pt = getPt(t, getWaveVal(t));
-                    d += (k === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`);
-                }
-                path.setAttribute('d', d);
-                
-                if (dashStyle === 'dashed') {
-                    path.setAttribute('stroke-dasharray', '8 6');
-                    path.setAttribute('stroke-dashoffset', (-fPhase * 140).toString()); 
-                } else if (dashStyle === 'dotted') {
-                    path.setAttribute('stroke-dasharray', '2 6');
-                    path.setAttribute('stroke-linecap', 'round');
-                    path.setAttribute('stroke-dashoffset', (-fPhase * 80).toString()); 
-                }
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke', color);
-                path.setAttribute('stroke-width', width);
-                path.setAttribute('opacity', '0.85');
-                baseLayer.appendChild(path);
-            } else {
-                // LIGHTNING FAST FALLBACK FOR PERFECT GEOMETRY
-                let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                if (!isCurve) {
-                    let finalX = x1 + (x2 - x1) * u;
-                    let finalY = y1 + (y2 - y1) * u;
-                    path.setAttribute('d', `M ${x1} ${y1} L ${finalX} ${finalY}`);
                 } else {
-                    if (u < 1.0) {
-                        let Q1x = (1 - u) * x1 + u * cx_ctrl;
-                        let Q1y = (1 - u) * y1 + u * cy_ctrl;
-                        let Q2x = Math.pow(1 - u, 2) * x1 + 2 * (1 - u) * u * cx_ctrl + Math.pow(u, 2) * x2;
-                        let Q2y = Math.pow(1 - u, 2) * y1 + 2 * (1 - u) * u * cy_ctrl + Math.pow(u, 2) * y2;
-                        path.setAttribute('d', `M ${x1} ${y1} Q ${Q1x} ${Q1y} ${Q2x} ${Q2y}`);
+                    if (!isCurve) {
+                        let finalX = x1 + (x2 - x1) * u;
+                        let finalY = y1 + (y2 - y1) * u;
+                        d = `M ${x1} ${y1} L ${finalX} ${finalY}`;
                     } else {
-                        path.setAttribute('d', `M ${x1} ${y1} Q ${cx_ctrl} ${cy_ctrl} ${x2} ${y2}`);
+                        if (u < 1.0) {
+                            let Q1x = (1 - u) * x1 + u * cx_ctrl;
+                            let Q1y = (1 - u) * y1 + u * cy_ctrl;
+                            let Q2x = Math.pow(1 - u, 2) * x1 + 2 * (1 - u) * u * cx_ctrl + Math.pow(u, 2) * x2;
+                            let Q2y = Math.pow(1 - u, 2) * y1 + 2 * (1 - u) * u * cy_ctrl + Math.pow(u, 2) * y2;
+                            d = `M ${x1} ${y1} Q ${Q1x} ${Q1y} ${Q2x} ${Q2y}`;
+                        } else {
+                            d = `M ${x1} ${y1} Q ${cx_ctrl} ${cy_ctrl} ${x2} ${y2}`;
+                        }
                     }
                 }
+                
+                path.setAttribute('d', d);
+
+                // NATIVE GPU LINEAR GRADIENT 
+                if (needsGradient) {
+                    let gradId = 'grad_' + (dynProps.gradCounter++);
+                    let grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+                    grad.setAttribute('id', gradId);
+                    grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+                    
+                    let startPt = getPt(0, getWaveVal(0));
+                    let endPt = getPt(u, getWaveVal(u));
+                    grad.setAttribute('x1', startPt.x.toString());
+                    grad.setAttribute('y1', startPt.y.toString());
+                    grad.setAttribute('x2', endPt.x.toString());
+                    grad.setAttribute('y2', endPt.y.toString());
+
+                    let stopsCount = 10;
+                    for (let j = 0; j <= stopsCount; j++) {
+                        let t_norm = j / stopsCount;
+                        let t = t_norm * u;
+                        
+                        let alpha = 1.0;
+                        if (fadeAmt > 0) {
+                            if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
+                            else if (t_norm > 1.0 - fadeAmt) alpha = (1.0 - t_norm) / fadeAmt;
+                        }
+                        alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
+
+                        let col = color;
+                        if (hInten > 0) {
+                            let waveVal = getWaveVal(t);
+                            let blend = Math.min(1.0, Math.abs(waveVal)) * hInten;
+                            col = lerpColorHex(color, hColor, blend);
+                        }
+
+                        let stopEl = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                        stopEl.setAttribute('offset', (t_norm * 100) + '%');
+                        stopEl.setAttribute('stop-color', col);
+                        stopEl.setAttribute('stop-opacity', alpha.toString());
+                        grad.appendChild(stopEl);
+                    }
+                    document.getElementById('grad-defs').appendChild(grad);
+                    path.setAttribute('stroke', `url(#${gradId})`);
+                } else {
+                    path.setAttribute('stroke', color);
+                    path.setAttribute('opacity', '0.85');
+                }
+
                 if (dashStyle === 'dashed') {
                     path.setAttribute('stroke-dasharray', '8 6');
                     path.setAttribute('stroke-dashoffset', (-fPhase * 140).toString()); 
@@ -1163,11 +1254,10 @@
                     path.setAttribute('stroke-linecap', 'round');
                     path.setAttribute('stroke-dashoffset', (-fPhase * 80).toString()); 
                 }
+                
                 path.setAttribute('fill', 'none');
-                path.setAttribute('stroke', color);
-                path.setAttribute('stroke-width', width);
-                path.setAttribute('opacity', '0.85');
-                baseLayer.appendChild(path);
+                path.setAttribute('stroke-width', width.toString());
+                targetLayer.appendChild(path);
             }
         }
 
@@ -1200,11 +1290,21 @@
             let wFreq = parseFloat(waveFreq.value);
             let wPhase = parseFloat(wavePhase.value);
 
-            // Populate the shared struct for appendCurve arguments
-            currentStyleProps.fadeAmt = parseFloat(opacityFade.value);
-            currentStyleProps.hColor = highlightColor.value;
-            currentStyleProps.hInten = parseFloat(highlightIntensity.value);
-            currentStyleProps.anchor = colorAnchor.value;
+            // Populate the shared struct for appendCurve calculations
+            dynProps.fadeAmt = parseFloat(opacityFade.value);
+            dynProps.hColor = highlightColor.value;
+            dynProps.hInten = parseFloat(highlightIntensity.value);
+            dynProps.anchor = colorAnchor.value;
+            dynProps.gradCounter = 0; // Fast integer IDs
+
+            let tFrames = parseInt(trailFrames.value);
+            let tSpacing = parseFloat(trailSpacing.value);
+            let baseWSpeed = parseFloat(animSpeed.value);
+            let baseFSpeed = parseFloat(flowSpeed.value);
+
+            // Optimization: Do not render ghosts if the timeline is frozen
+            let hasMotion = (baseWSpeed !== 0 && wType !== 'none') || (baseFSpeed !== 0 && dashStyle !== 'solid');
+            let effectiveTrailFrames = hasMotion ? tFrames : 0;
 
             svg.style.backgroundColor = background;
 
@@ -1220,6 +1320,11 @@
             bgRect.setAttribute('height', vbSize.toString());
             bgRect.setAttribute('fill', background);
             svg.appendChild(bgRect);
+
+            // Container for dynamic native gradients
+            let gradDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            gradDefs.setAttribute('id', 'grad-defs');
+            svg.appendChild(gradDefs);
 
             let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
             baseLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -1249,126 +1354,153 @@
             halftoneAnchorControl.style.display = (dashStyle === 'halftone') ? 'flex' : 'none';
             waveParamsControl.style.display = (wType !== 'none') ? 'block' : 'none';
 
-            if (style === 'circle_string') {
-                let stepOffset = parseInt(circleStep.value);
-                circleStep.max = (steps - 1).toString(); 
-                for(let i = 0; i < steps; i++) {
-                    let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
-                    let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
-                    let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1);
-                    let p2x = cx + r * Math.cos(a2); let p2y = cy + r * Math.sin(a2);
-                    appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+            // THE TRAIL LOOP (Renders older ghosts first, current frame last)
+            for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
+                let offsetMultiplier = trail * tSpacing;
+                
+                let frameWPhase = wPhase;
+                if (baseWSpeed !== 0 && wType !== 'none') {
+                    frameWPhase = (wPhase - (baseWSpeed * offsetMultiplier)) % 360;
+                    if (frameWPhase < 0) frameWPhase += 360;
                 }
-            }
-            else if (style === 'ellipse_string') {
-                let stepOffset = parseInt(circleStep.value);
-                let ratio = parseFloat(ellipseRatio.value);
-                circleStep.max = (steps - 1).toString(); 
-                let rx = r;
-                let ry = r * ratio;
-                for(let i = 0; i < steps; i++) {
-                    let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
-                    let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
-                    let p1x = cx + rx * Math.cos(a1); let p1y = cy + ry * Math.sin(a1);
-                    let p2x = cx + rx * Math.cos(a2); let p2y = cy + ry * Math.sin(a2);
-                    appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+
+                let frameFPhase = fPhase;
+                if (baseFSpeed !== 0 && dashStyle !== 'solid') {
+                    frameFPhase = (fPhase - (baseFSpeed * offsetMultiplier / 100.0)) % 1.0;
+                    if (frameFPhase < 0) frameFPhase += 1.0;
                 }
-            }
-            else if (style === 'circle_to_circle') {
-                let stepOffset = parseInt(circleStep.value);
-                circleStep.max = (steps - 1).toString(); 
-                let innerR = r * 0.35; 
-                for(let i = 0; i < steps; i++) {
-                    let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
-                    let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
-                    let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1); 
-                    let p2x = cx + innerR * Math.cos(a2); let p2y = cy + innerR * Math.sin(a2); 
-                    appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+
+                let trailOpacity = (effectiveTrailFrames === 0) ? 1.0 : 1.0 - Math.pow(trail / effectiveTrailFrames, 1.2);
+                if (trailOpacity <= 0.01 && trail > 0) continue;
+
+                let frameGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                if (effectiveTrailFrames > 0) {
+                    frameGroup.setAttribute('opacity', trailOpacity.toString());
                 }
-            }
-            else if (style === 'arc_shell') {
-                for(let i = 0; i <= steps; i++) {
-                    let t = i / steps;
-                    let p1x = cx - r + (2 * r * t); let p1y = cy + (r * 0.7); 
-                    let angle = Math.PI - (t * Math.PI); 
-                    let p2x = cx + r * Math.cos(angle); let p2y = cy + (r * 0.7) - r * Math.sin(angle);
-                    appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+                baseLayer.appendChild(frameGroup);
+
+                // GENERATE GEOMETRY FOR THIS SPECIFIC TRAIL FRAME
+                if (style === 'circle_string') {
+                    let stepOffset = parseInt(circleStep.value);
+                    circleStep.max = (steps - 1).toString(); 
+                    for(let i = 0; i < steps; i++) {
+                        let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
+                        let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
+                        let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1);
+                        let p2x = cx + r * Math.cos(a2); let p2y = cy + r * Math.sin(a2);
+                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
                 }
-            }
-            else if (style === 'double_arc') {
-                for(let i = 0; i <= steps; i++) {
-                    let t = i / steps;
-                    let a1 = -(Math.PI/2) + (t * Math.PI); 
-                    let p1x = (cx - r/2) + (r * 1.2) * Math.cos(a1); let p1y = cy + (r * 1.2) * Math.sin(a1);
-                    let a2 = (Math.PI/2) + (t * Math.PI);
-                    let p2x = (cx + r/2) + (r * 1.2) * Math.cos(a2); let p2y = cy + (r * 1.2) * Math.sin(a2);
-                    appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+                else if (style === 'ellipse_string') {
+                    let stepOffset = parseInt(circleStep.value);
+                    let ratio = parseFloat(ellipseRatio.value);
+                    circleStep.max = (steps - 1).toString(); 
+                    let rx = r;
+                    let ry = r * ratio;
+                    for(let i = 0; i < steps; i++) {
+                        let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
+                        let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
+                        let p1x = cx + rx * Math.cos(a1); let p1y = cy + ry * Math.sin(a1);
+                        let p2x = cx + rx * Math.cos(a2); let p2y = cy + ry * Math.sin(a2);
+                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
                 }
-            }
-            else if (style === 'v_shape') {
-                let angleRad = parseInt(angleCount.value) * Math.PI / 180;
-                let origin = [cx, cy + (200 * scale)]; 
-                let halfAngle = angleRad / 2;
-                let maxHorizontalLength = (230 * scale) / Math.sin(halfAngle);
-                let maxVerticalLength = (400 * scale) / Math.cos(halfAngle);
-                let length = Math.min(maxHorizontalLength, maxVerticalLength);
-                let leftAngle = -Math.PI/2 - halfAngle; let rightAngle = -Math.PI/2 + halfAngle;
-                let end1 = [ origin[0] + length * Math.cos(leftAngle), origin[1] + length * Math.sin(leftAngle) ];
-                let end2 = [ origin[0] + length * Math.cos(rightAngle), origin[1] + length * Math.sin(rightAngle) ];
-                drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-            }
-            else if (style === 'multi_axis') {
-                let axes = parseInt(multiAxesCount.value);
-                let points = [];
-                for(let i = 0; i < axes; i++) {
-                    let a = i * (2 * Math.PI / axes) - (Math.PI/2);
-                    points.push([ cx + r * Math.cos(a), cy + r * Math.sin(a) ]);
+                else if (style === 'circle_to_circle') {
+                    let stepOffset = parseInt(circleStep.value);
+                    circleStep.max = (steps - 1).toString(); 
+                    let innerR = r * 0.35; 
+                    for(let i = 0; i < steps; i++) {
+                        let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
+                        let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
+                        let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1); 
+                        let p2x = cx + innerR * Math.cos(a2); let p2y = cy + innerR * Math.sin(a2); 
+                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
                 }
-                for(let i = 0; i < axes; i++) {
-                    drawCorner([cx, cy], points[i], points[(i+1) % axes], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+                else if (style === 'arc_shell') {
+                    for(let i = 0; i <= steps; i++) {
+                        let t = i / steps;
+                        let p1x = cx - r + (2 * r * t); let p1y = cy + (r * 0.7); 
+                        let angle = Math.PI - (t * Math.PI); 
+                        let p2x = cx + r * Math.cos(angle); let p2y = cy + (r * 0.7) - r * Math.sin(angle);
+                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
                 }
-            }
-            else if (style === 'polygon_ring') {
-                let sides = parseInt(polygonSides.value);
-                let v = [];
-                for(let i = 0; i < sides; i++) {
-                    let a = i * (2 * Math.PI / sides) - (Math.PI/2);
-                    v.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+                else if (style === 'double_arc') {
+                    for(let i = 0; i <= steps; i++) {
+                        let t = i / steps;
+                        let a1 = -(Math.PI/2) + (t * Math.PI); 
+                        let p1x = (cx - r/2) + (r * 1.2) * Math.cos(a1); let p1y = cy + (r * 1.2) * Math.sin(a1);
+                        let a2 = (Math.PI/2) + (t * Math.PI);
+                        let p2x = (cx + r/2) + (r * 1.2) * Math.cos(a2); let p2y = cy + (r * 1.2) * Math.sin(a2);
+                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
                 }
-                for(let i = 0; i < sides; i++) {
-                    let prev = v[(i - 1 + sides) % sides]; let curr = v[i]; let next = v[(i + 1) % sides];
-                    drawCorner(curr, prev, next, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
+                else if (style === 'v_shape') {
+                    let angleRad = parseInt(angleCount.value) * Math.PI / 180;
+                    let origin = [cx, cy + (200 * scale)]; 
+                    let halfAngle = angleRad / 2;
+                    let maxHorizontalLength = (230 * scale) / Math.sin(halfAngle);
+                    let maxVerticalLength = (400 * scale) / Math.cos(halfAngle);
+                    let length = Math.min(maxHorizontalLength, maxVerticalLength);
+                    let leftAngle = -Math.PI/2 - halfAngle; let rightAngle = -Math.PI/2 + halfAngle;
+                    let end1 = [ origin[0] + length * Math.cos(leftAngle), origin[1] + length * Math.sin(leftAngle) ];
+                    let end2 = [ origin[0] + length * Math.cos(rightAngle), origin[1] + length * Math.sin(rightAngle) ];
+                    drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
                 }
-            }
-            else if (style === 'square_circle') {
-                drawCorner([maxB, minB], [minB, minB], [maxB, maxB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-                drawCorner([maxB, maxB], [maxB, minB], [minB, maxB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-                drawCorner([minB, maxB], [maxB, maxB], [minB, minB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-                drawCorner([minB, minB], [minB, maxB], [maxB, minB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-            } 
-            else if (style === 'star_center') {
-                let n = [cx, minB], s = [cx, maxB], e = [maxB, cy], w = [minB, cy];
-                drawCorner([cx, cy], n, e, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-                drawCorner([cx, cy], e, s, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-                drawCorner([cx, cy], s, w, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-                drawCorner([cx, cy], w, n, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-            }
-            else if (style === 'asymmetric_star') {
-                let origin = [cx - (130 * scale), cy - (130 * scale)]; 
-                let tl = [minB, minB], tr = [maxB, minB], br = [maxB, maxB], bl = [minB, maxB];
-                drawCorner(origin, tl, tr, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-                drawCorner(origin, tr, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-                drawCorner(origin, br, bl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-                drawCorner(origin, bl, tl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase);
-            }
-            else if (style === 'hourglass') {
-                let tl = [minB, minB], tr = [maxB, minB], bl = [minB, maxB], br = [maxB, maxB];
-                let center = [cx, cy];
-                drawCorner(center, tl, tr, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-                drawCorner(center, bl, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-                drawCorner(center, tl, bl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-                drawCorner(center, tr, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase); 
-            }
+                else if (style === 'multi_axis') {
+                    let axes = parseInt(multiAxesCount.value);
+                    let points = [];
+                    for(let i = 0; i < axes; i++) {
+                        let a = i * (2 * Math.PI / axes) - (Math.PI/2);
+                        points.push([ cx + r * Math.cos(a), cy + r * Math.sin(a) ]);
+                    }
+                    for(let i = 0; i < axes; i++) {
+                        drawCorner([cx, cy], points[i], points[(i+1) % axes], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
+                }
+                else if (style === 'polygon_ring') {
+                    let sides = parseInt(polygonSides.value);
+                    let v = [];
+                    for(let i = 0; i < sides; i++) {
+                        let a = i * (2 * Math.PI / sides) - (Math.PI/2);
+                        v.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+                    }
+                    for(let i = 0; i < sides; i++) {
+                        let prev = v[(i - 1 + sides) % sides]; let curr = v[i]; let next = v[(i + 1) % sides];
+                        drawCorner(curr, prev, next, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    }
+                }
+                else if (style === 'square_circle') {
+                    drawCorner([maxB, minB], [minB, minB], [maxB, maxB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                    drawCorner([maxB, maxB], [maxB, minB], [minB, maxB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                    drawCorner([minB, maxB], [maxB, maxB], [minB, minB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                    drawCorner([minB, minB], [minB, maxB], [maxB, minB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                } 
+                else if (style === 'star_center') {
+                    let n = [cx, minB], s = [cx, maxB], e = [maxB, cy], w = [minB, cy];
+                    drawCorner([cx, cy], n, e, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    drawCorner([cx, cy], e, s, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    drawCorner([cx, cy], s, w, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    drawCorner([cx, cy], w, n, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                }
+                else if (style === 'asymmetric_star') {
+                    let origin = [cx - (130 * scale), cy - (130 * scale)]; 
+                    let tl = [minB, minB], tr = [maxB, minB], br = [maxB, maxB], bl = [minB, maxB];
+                    drawCorner(origin, tl, tr, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    drawCorner(origin, tr, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    drawCorner(origin, br, bl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                    drawCorner(origin, bl, tl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
+                }
+                else if (style === 'hourglass') {
+                    let tl = [minB, minB], tr = [maxB, minB], bl = [minB, maxB], br = [maxB, maxB];
+                    let center = [cx, cy];
+                    drawCorner(center, tl, tr, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                    drawCorner(center, bl, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                    drawCorner(center, tl, bl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                    drawCorner(center, tr, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
+                }
+            } // END TRAIL LOOP
 
             for (let i = 0; i < symmetry; i++) {
                 let angle = i * (360 / symmetry);
