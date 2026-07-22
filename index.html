@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parabolic Lines SVG Generator</title>
-    <!-- MP4 Muxer for Offline 1080p 60fps Export -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Parabolica</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
-    <!-- GIF.js for 50fps GIF Export -->
+    <script src="https://cdn.jsdelivr.net/npm/webm-muxer@5.0.2/build/webm-muxer.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    
     <style>
         :root {
             --bg: #1e1e1e;
@@ -23,25 +24,32 @@
             --warning: #e67e22;
             --warning-hover: #d35400;
         }
+        
+        * { box-sizing: border-box; }
+        input, select, button { margin: 0; font-family: inherit; }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
             display: flex;
-            height: 100vh;
+            height: 100dvh; 
             overflow: hidden;
+            -webkit-text-size-adjust: 100%; 
         }
+        
         .sidebar {
             width: 350px;
             background-color: var(--panel-bg);
             padding: 20px;
             box-shadow: 2px 0 10px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
+            display: block; 
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            flex-shrink: 0; 
         }
+        
         .sidebar::-webkit-scrollbar { width: 8px; }
         .sidebar::-webkit-scrollbar-track { background: var(--bg); }
         .sidebar::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -53,70 +61,114 @@
             align-items: center;
             background-color: #e5e5e5;
             padding: 20px;
+            min-width: 0; 
+            min-height: 0;
         }
-        svg {
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-height: 90%;
-            max-width: 90%;
-            aspect-ratio: 1 / 1;
-        }
-        h2 { margin-top: 0; margin-bottom: 5px; font-size: 1.3rem; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
-        h3 { margin: 10px 0 5px 0; font-size: 1.05rem; color: #ccc; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
         
-        .control-group { display: flex; flex-direction: column; gap: 6px; }
-        .checkbox-group { flex-direction: row; align-items: center; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+        #drawingCanvas {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            background-color: #ffffff;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            aspect-ratio: 1 / 1;
+            flex-shrink: 1; 
+            min-width: 0;
+            min-height: 0;
+        }
+        
+        #exportSvgContainer { display: none; }
+
+        h2 { margin: 0 0 15px 0; font-size: 1.3rem; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+        h3 { margin: 20px 0 10px 0; font-size: 1.05rem; color: #ccc; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+        
+        .control-group { display: block; margin-bottom: 12px; }
+        .checkbox-group { display: flex; flex-direction: row; align-items: center; cursor: pointer; font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; }
         .checkbox-group input { width: 18px; height: 18px; cursor: pointer; margin: 0 8px 0 0; }
         
-        label { font-size: 0.9rem; font-weight: 600; }
-        input[type="range"], select, input[type="color"] { width: 100%; padding: 5px; cursor: pointer; }
+        label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; }
         .value-display { font-size: 0.8rem; color: #aaa; float: right; }
+
+        input[type="range"] { 
+            -webkit-appearance: none;
+            width: 100%; 
+            background: transparent;
+            margin: 8px 0; 
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px; width: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            margin-top: -8px;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: #555; border-radius: 2px;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 100%;
+            height: 32px;
+            padding: 0;
+            border-radius: 4px;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+        select, input[type="text"] { 
+            -webkit-appearance: none;
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background-color: var(--bg);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
         
         button {
+            display: block;
+            width: 100%;
             background-color: var(--accent);
             color: white;
             border: none;
-            padding: 14px;
+            padding: 12px;
             font-size: 1rem;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
             transition: background-color 0.2s;
+            touch-action: manipulation;
+            margin-bottom: 8px;
         }
         button:hover { background-color: var(--accent-hover); }
         button:disabled { background-color: #555 !important; cursor: not-allowed; }
 
-        /* Preset UI Styles */
-        .preset-buttons { display: flex; gap: 8px; margin-top: 4px; }
-        .preset-buttons button { flex: 1; padding: 8px; font-size: 0.85rem; margin: 0; }
-        .preset-input-row { display: flex; gap: 8px; margin-top: 5px; }
-        .preset-input-row input[type="text"] {
-            flex: 2; padding: 8px; border: 1px solid var(--border);
-            border-radius: 4px; background-color: var(--bg); color: var(--text);
-        }
-        .preset-input-row button { flex: 1; padding: 8px; font-size: 0.85rem; margin: 0; }
+        .preset-buttons, .preset-input-row { display: flex; flex-direction: row; gap: 8px; margin-top: 4px; margin-bottom: 0; width: 100%; }
+        .preset-buttons button, .preset-input-row button { flex: 1; min-width: 0; padding: 8px; font-size: 0.85rem; margin: 0; }
+        .preset-input-row input[type="text"] { flex: 2; min-width: 0; margin: 0; }
         
         .btn-save { background-color: var(--success); }
         .btn-save:hover { background-color: var(--success-hover); }
         .btn-delete { background-color: var(--danger); transition: background-color 0.2s, color 0.2s; }
         .btn-delete:hover { background-color: var(--danger-hover); }
-        .btn-video { background-color: var(--warning); }
+        .btn-video { background-color: var(--warning); padding: 10px; font-size: 0.9rem; }
         .btn-video:hover { background-color: var(--warning-hover); }
 
-        /* Hidden by default, toggled via JS */
         #angleControl, #axesControl, #polygonControl, #circleStepControl, #ellipseRatioControl, #halftoneSizeControl, #halftoneFalloffControl, #waveParamsControl, #flowControls, #halftoneAnchorControl { display: none; }
     </style>
 </head>
 <body>
 
     <div class="sidebar">
-        <h2>Drawing Controls</h2>
-
-        <!-- Presets -->
+        <h2>Controls</h2>
         <h3>Presets</h3>
         <div class="control-group">
-            <select id="presetSelect">
-                <option value="">-- Select a Saved Preset --</option>
-            </select>
+            <select id="presetSelect"><option value="">-- Select a Saved Preset --</option></select>
             <div class="preset-buttons">
                 <button id="loadPresetBtn">Load</button>
                 <button id="deletePresetBtn" class="btn-delete">Delete</button>
@@ -127,15 +179,12 @@
             </div>
         </div>
 
-        <!-- Animation & Video -->
         <h3>Animation & Export</h3>
         <label class="checkbox-group" for="animatePhase">
-            <input type="checkbox" id="animatePhase">
-            Play All Animations
+            <input type="checkbox" id="animatePhase"> Play All Animations
         </label>
 
-        <!-- New Trail Features -->
-        <div class="control-group" style="margin-top: 10px;">
+        <div class="control-group" style="margin-top: 4px;">
             <label for="trailFrames">Motion Trail (Ghosts) <span id="trailFramesVal" class="value-display">0</span></label>
             <input type="range" id="trailFrames" min="0" max="30" step="1" value="0">
         </div>
@@ -144,11 +193,11 @@
             <input type="range" id="trailSpacing" min="0.1" max="5.0" step="0.1" value="1.0">
         </div>
 
-        <button id="exportVidBtn" class="btn-video" style="margin-top: 10px;">Export Looping Video (1080p 60FPS)</button>
-        <button id="exportGifBtn" class="btn-video" style="margin-top: 5px; background-color: #9b59b6;">Export Looping GIF (50FPS)</button>
-        <button id="exportBtn" style="margin-top: 5px;">Export Image as .SVG</button>
+        <button id="exportVidBtn" class="btn-video" style="margin-top: 8px;">Export Looping Video (1080p)</button>
+        <button id="exportWebmBtn" class="btn-video" style="background-color: #9b59b6;">Export Looping WebM</button>
+        <button id="exportGifBtn" class="btn-video" style="background-color: #e67e22;">Export Looping GIF (50FPS)</button>
+        <button id="exportBtn" style="margin-top: 4px;">Export Image as .SVG</button>
 
-        <!-- Core Settings -->
         <h3>Core Geometry</h3>
         <div class="control-group">
             <label for="styleSelect">Drawing Style</label>
@@ -172,18 +221,15 @@
             <label for="linesCount">Number of Points (X/Y) <span id="linesVal" class="value-display">45</span></label>
             <input type="range" id="linesCount" min="5" max="200" value="45">
         </div>
-
         <div class="control-group">
             <label for="curveAmount">Line Curvature <span id="curveVal" class="value-display">0.0</span></label>
             <input type="range" id="curveAmount" min="-1.5" max="1.5" step="0.1" value="0.0">
         </div>
-
         <div class="control-group">
             <label for="erosionAmount">Spatial Erosion (Outside-In) <span id="erosionVal" class="value-display">0.0</span></label>
             <input type="range" id="erosionAmount" min="0.0" max="1.0" step="0.05" value="0.0">
         </div>
 
-        <!-- Line Modulation -->
         <h3>Line Modulation (Waves)</h3>
         <div class="control-group">
             <label for="waveType">Waveform</label>
@@ -201,7 +247,7 @@
             </div>
             <div class="control-group">
                 <label for="waveFreq">Frequency (Cycles) <span id="wFreqVal" class="value-display">5</span></label>
-                <input type="range" id="waveFreq" min="1" max="50" step="1" value="5">
+                <input type="range" id="waveFreq" min="0.1" max="20" step="0.1" value="1">
             </div>
             <div class="control-group">
                 <label for="wavePhase">Wave Phase (Offset) <span id="wPhaseVal" class="value-display">0</span></label>
@@ -213,29 +259,27 @@
             </div>
         </div>
 
-        <!-- Dynamic Contextual Settings -->
-        <div class="control-group" id="angleControl" style="margin-top:10px;">
+        <div class="control-group" id="angleControl">
             <label for="angleCount">Axis Angle (Degrees) <span id="angleVal" class="value-display">60</span></label>
             <input type="range" id="angleCount" min="10" max="170" value="60">
         </div>
-        <div class="control-group" id="axesControl" style="margin-top:10px;">
+        <div class="control-group" id="axesControl">
             <label for="multiAxesCount">Number of Axes <span id="axesVal" class="value-display">8</span></label>
             <input type="range" id="multiAxesCount" min="3" max="24" value="8">
         </div>
-        <div class="control-group" id="polygonControl" style="margin-top:10px;">
+        <div class="control-group" id="polygonControl">
             <label for="polygonSides">Number of Sides (Polygon) <span id="polygonVal" class="value-display">6</span></label>
             <input type="range" id="polygonSides" min="3" max="20" value="6">
         </div>
-        <div class="control-group" id="circleStepControl" style="margin-top:10px;">
+        <div class="control-group" id="circleStepControl">
             <label for="circleStep">Connection Step (Twist) <span id="circleStepVal" class="value-display">16</span></label>
             <input type="range" id="circleStep" min="1" max="99" value="16">
         </div>
-        <div class="control-group" id="ellipseRatioControl" style="margin-top:10px;">
+        <div class="control-group" id="ellipseRatioControl">
             <label for="ellipseRatio">Ellipse Aspect Ratio <span id="ellipseRatioVal" class="value-display">0.6</span></label>
             <input type="range" id="ellipseRatio" min="0.1" max="2.0" step="0.05" value="0.6">
         </div>
 
-        <!-- Aesthetics -->
         <h3>Aesthetics & Styles</h3>
         <div class="control-group">
             <label for="lineStyle">Line Dash Style</label>
@@ -247,7 +291,6 @@
             </select>
         </div>
 
-        <!-- Dash & Flow Controls -->
         <div id="flowControls">
             <div class="control-group" id="halftoneSizeControl">
                 <label for="halftoneSize">Halftone Dot Size <span id="htSizeVal" class="value-display">3.0</span></label>
@@ -276,82 +319,132 @@
 
         <div class="control-group" style="margin-top: 10px;">
             <label for="opacityFade">Line End Fade (Opacity) <span id="fadeVal" class="value-display">0.10</span></label>
-            <input type="range" id="opacityFade" min="0.0" max="0.5" step="any" value="0.10">
+            <input type="range" id="opacityFade" min="0.0" max="0.5" step="any" value="0.0">
         </div>
-
         <div class="control-group">
             <label for="bgColor">Background Color</label>
             <input type="color" id="bgColor" value="#ffffff">
         </div>
-
         <div class="control-group">
             <label for="lineColor">Base Line Color</label>
             <input type="color" id="lineColor" value="#000000">
         </div>
-
         <div class="control-group">
             <label for="highlightColor">Amplitude Highlight Color</label>
             <input type="color" id="highlightColor" value="#ff0055">
         </div>
-        
         <div class="control-group">
             <label for="highlightIntensity">Highlight Intensity <span id="hIntenVal" class="value-display">0.0</span></label>
             <input type="range" id="highlightIntensity" min="0.0" max="1.0" step="any" value="0.0">
         </div>
-
         <div class="control-group">
             <label for="lineWidth">Line Thickness <span id="widthVal" class="value-display">1.0</span></label>
             <input type="range" id="lineWidth" min="0.1" max="10.0" step="0.1" value="1.0">
         </div>
 
-        <!-- Advanced App Features -->
-        <h3>Advanced Geometrica Settings</h3>
+        <h3>Layout & Symmetry</h3>
         
         <div class="control-group">
-            <label for="symmetryCount">Kaleidoscope (Radial Symmetry) <span id="symVal" class="value-display">1x</span></label>
+            <label for="layoutMode">Pattern Layout</label>
+            <select id="layoutMode">
+                <option value="radial">Radial (Kaleidoscope)</option>
+                <option value="spiral">Spiral Vortex</option>
+                <option value="linear">Linear Array</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="radialControls">
+            <label for="symmetryCount">Kaleidoscope Arms <span id="symVal" class="value-display">1x</span></label>
             <input type="range" id="symmetryCount" min="1" max="24" value="1">
         </div>
 
-        <label class="checkbox-group" for="mirrorSymmetry">
-            <input type="checkbox" id="mirrorSymmetry">
-            Mirror Reflection
-        </label>
+        <div id="spiralControls">
+            <div class="control-group">
+                <label for="spiralSteps">Spiral Depth (Steps) <span id="spiralStepsVal" class="value-display">50</span></label>
+                <input type="range" id="spiralSteps" min="1" max="200" value="50">
+            </div>
+            <div class="control-group">
+                <label for="spiralTwist">Twist Angle <span id="spiralTwistVal" class="value-display">15.0°</span></label>
+                <input type="range" id="spiralTwist" min="-180" max="180" step="0.5" value="15.0">
+            </div>
+            <div class="control-group">
+                <label for="spiralShrink">Scale Falloff <span id="spiralShrinkVal" class="value-display">0.92</span></label>
+                <input type="range" id="spiralShrink" min="0.50" max="1.05" step="0.01" value="0.92">
+            </div>
+        </div>
 
+        <div id="linearControls">
+            <div class="control-group">
+                <label for="linearCopies">Array Copies <span id="linearCopiesVal" class="value-display">5</span></label>
+                <input type="range" id="linearCopies" min="1" max="50" value="5">
+            </div>
+            <div class="control-group">
+                <label for="linearX">X Spacing <span id="linearXVal" class="value-display">50px</span></label>
+                <input type="range" id="linearX" min="-200" max="200" step="1" value="50">
+            </div>
+            <div class="control-group">
+                <label for="linearY">Y Spacing <span id="linearYVal" class="value-display">0px</span></label>
+                <input type="range" id="linearY" min="-200" max="200" step="1" value="0">
+            </div>
+        </div>
+
+        <label class="checkbox-group" for="mirrorSymmetry" style="margin-top: 10px;">
+            <input type="checkbox" id="mirrorSymmetry"> Mirror Reflection (X-Axis)
+        </label>
+        
         <div class="control-group">
             <label for="globalRotation">Global Rotation (Degrees) <span id="rotVal" class="value-display">0</span></label>
             <input type="range" id="globalRotation" min="0" max="360" value="0">
         </div>
-
         <div class="control-group">
             <label for="offsetX">Center Offset X <span id="offsetXVal" class="value-display">0</span></label>
             <input type="range" id="offsetX" min="-250" max="250" value="0">
         </div>
-
         <div class="control-group">
             <label for="offsetY">Center Offset Y <span id="offsetYVal" class="value-display">0</span></label>
             <input type="range" id="offsetY" min="-250" max="250" value="0">
         </div>
-        
         <div class="control-group">
             <label for="zoomValue">Global Zoom (Camera) <span id="zoomVal" class="value-display">1.0x</span></label>
             <input type="range" id="zoomValue" min="0.1" max="3.0" step="0.1" value="1.0">
         </div>
-
         <div class="control-group">
             <label for="scaleValue">Base Shape Size <span id="scaleVal" class="value-display">1.0</span></label>
             <input type="range" id="scaleValue" min="0.1" max="1.5" step="0.05" value="1.0">
         </div>
-
     </div>
 
     <div class="canvas-container">
-        <svg id="drawingCanvas" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>
+        <canvas id="drawingCanvas"></canvas>
+    </div>
+
+    <div id="exportSvgContainer">
+        <svg id="exportSvg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>
     </div>
     <script>
-        const svg = document.getElementById('drawingCanvas');
-        let baseLayer; 
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const exportSvg = document.getElementById('exportSvg');
         
-        // --- ALL INPUT ELEMENTS ---
+        let isCanvasInitialized = false;
+
+        function resizeCanvas() {
+            const logicalSize = 1000; 
+            const dpr = window.devicePixelRatio || 1;
+            
+            if (!isCanvasInitialized) {
+                canvas.width = logicalSize * dpr;
+                canvas.height = logicalSize * dpr;
+                ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                ctx.scale(dpr, dpr);
+                isCanvasInitialized = true;
+            }
+            return logicalSize; 
+        }
+
+        const baseCanvas = document.createElement('canvas');
+        const baseCtx = baseCanvas.getContext('2d');
+        
         const styleSelect = document.getElementById('styleSelect');
         const linesCount = document.getElementById('linesCount');
         const curveAmountInput = document.getElementById('curveAmount');
@@ -366,7 +459,16 @@
         const polygonSides = document.getElementById('polygonSides');
         const circleStep = document.getElementById('circleStep');
         const ellipseRatio = document.getElementById('ellipseRatio');
+        
+        const layoutMode = document.getElementById('layoutMode');
         const symmetryCount = document.getElementById('symmetryCount');
+        const spiralSteps = document.getElementById('spiralSteps');
+        const spiralTwist = document.getElementById('spiralTwist');
+        const spiralShrink = document.getElementById('spiralShrink');
+        const linearCopies = document.getElementById('linearCopies');
+        const linearX = document.getElementById('linearX');
+        const linearY = document.getElementById('linearY');
+        
         const mirrorSymmetry = document.getElementById('mirrorSymmetry');
         const globalRotation = document.getElementById('globalRotation');
         const offsetInputX = document.getElementById('offsetX');
@@ -388,70 +490,56 @@
         const trailFrames = document.getElementById('trailFrames');
         const trailSpacing = document.getElementById('trailSpacing');
         
-        // --- PRESET & EXPORT ELEMENTS ---
         const presetSelect = document.getElementById('presetSelect');
         const presetNameInput = document.getElementById('presetNameInput');
-        const loadPresetBtn = document.getElementById('loadPresetBtn');
-        const savePresetBtn = document.getElementById('savePresetBtn');
-        const deletePresetBtn = document.getElementById('deletePresetBtn');
-        const exportBtn = document.getElementById('exportBtn');
-        
-        // --- ANIMATION ELEMENTS ---
         const animatePhase = document.getElementById('animatePhase');
         const exportVidBtn = document.getElementById('exportVidBtn');
+        const exportWebmBtn = document.getElementById('exportWebmBtn');
         const exportGifBtn = document.getElementById('exportGifBtn');
-
-        // --- DISPLAY & VISIBILITY HOOKS ---
-        const linesVal = document.getElementById('linesVal');
-        const curveVal = document.getElementById('curveVal');
-        const erosionVal = document.getElementById('erosionVal');
-        const wAmpVal = document.getElementById('wAmpVal');
-        const wFreqVal = document.getElementById('wFreqVal');
-        const wPhaseVal = document.getElementById('wPhaseVal');
-        const animSpeedVal = document.getElementById('animSpeedVal');
-        const angleVal = document.getElementById('angleVal');
-        const axesVal = document.getElementById('axesVal');
-        const polygonVal = document.getElementById('polygonVal');
-        const circleStepVal = document.getElementById('circleStepVal');
-        const ellipseRatioVal = document.getElementById('ellipseRatioVal');
-        const symVal = document.getElementById('symVal');
-        const rotVal = document.getElementById('rotVal');
-        const offsetXVal = document.getElementById('offsetXVal');
-        const offsetYVal = document.getElementById('offsetYVal');
-        const zoomVal = document.getElementById('zoomVal');
-        const scaleVal = document.getElementById('scaleVal');
-        const htSizeVal = document.getElementById('htSizeVal');
-        const htFalloffVal = document.getElementById('htFalloffVal');
-        const fPhaseVal = document.getElementById('fPhaseVal');
-        const fSpeedVal = document.getElementById('fSpeedVal');
-        const fadeVal = document.getElementById('fadeVal');
-        const hIntenVal = document.getElementById('hIntenVal');
-        const widthVal = document.getElementById('widthVal');
-        const trailFramesVal = document.getElementById('trailFramesVal');
-        const trailSpacingVal = document.getElementById('trailSpacingVal');
-
-        const waveParamsControl = document.getElementById('waveParamsControl');
-        const flowControls = document.getElementById('flowControls');
-        const angleControl = document.getElementById('angleControl');
-        const axesControl = document.getElementById('axesControl');
-        const polygonControl = document.getElementById('polygonControl');
-        const circleStepControl = document.getElementById('circleStepControl');
-        const ellipseRatioControl = document.getElementById('ellipseRatioControl');
-        const halftoneSizeControl = document.getElementById('halftoneSizeControl');
-        const halftoneFalloffControl = document.getElementById('halftoneFalloffControl');
-        const halftoneAnchorControl = document.getElementById('halftoneAnchorControl');
 
         const stateControls = [
             'styleSelect', 'linesCount', 'curveAmount', 'erosionAmount', 
             'waveType', 'waveAmp', 'waveFreq', 'wavePhase', 'animSpeed',
             'angleCount', 'multiAxesCount', 'polygonSides', 'circleStep', 'ellipseRatio', 
-            'symmetryCount', 'mirrorSymmetry', 'globalRotation', 'offsetX', 'offsetY', 
+            'layoutMode', 'symmetryCount', 'spiralSteps', 'spiralTwist', 'spiralShrink', 'linearCopies', 'linearX', 'linearY',
+            'mirrorSymmetry', 'globalRotation', 'offsetX', 'offsetY', 
             'zoomValue', 'scaleValue', 'lineStyle', 'halftoneSize', 'halftoneFalloff', 'colorAnchor', 'flowPhase', 'flowSpeed',
             'opacityFade', 'highlightColor', 'highlightIntensity', 'trailFrames', 'trailSpacing',
             'bgColor', 'lineColor', 'lineWidth', 'animatePhase'
         ];
 
-        // --- MATH HELPERS ---
+        let dynProps = {};
+        let isAnimating = false;
+        let isRecording = false;
+        let animRequest;
+
+        animatePhase.addEventListener('change', function(e) {
+            isAnimating = e.target.checked;
+            if (isAnimating) { animationLoop(); } 
+            else { cancelAnimationFrame(animRequest); }
+        });
+
+        function animationLoop() {
+            if (!isAnimating || isRecording) return;
+            let wSpeed = parseFloat(animSpeed.value);
+            if (wSpeed !== 0 && waveType.value !== 'none') {
+                let phase = parseFloat(wavePhase.value);
+                phase = (phase + wSpeed) % 360;
+                if (phase < 0) phase += 360;
+                wavePhase.value = phase.toFixed(2);
+            }
+            let fSpeed = parseFloat(flowSpeed.value);
+            if (fSpeed !== 0 && lineStyle.value !== 'solid') {
+                let fPhase = parseFloat(flowPhase.value);
+                fPhase = (fPhase + fSpeed) % 100;
+                if (fPhase < 0) fPhase += 100;
+                flowPhase.value = fPhase.toFixed(2);
+            }
+            updateDisplays();
+            drawLiveCanvas();
+            animRequest = requestAnimationFrame(animationLoop);
+        }
+
         function lerpColorHex(a, b, amount) {
             let ah = parseInt(a.replace(/#/g, ''), 16),
                 ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
@@ -462,577 +550,23 @@
                 rb = ab + amount * (bb - ab);
             return '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb | 0).toString(16).slice(1);
         }
-
-        // Shared dynamic property object for appendCurve loop efficiency
-        let dynProps = {};
-
-        // --- ANIMATION LOGIC ---
-        let isAnimating = false;
-        let isRecording = false;
-        let animRequest;
-
-        animatePhase.addEventListener('change', function(e) {
-            isAnimating = e.target.checked;
-            if (isAnimating) {
-                animationLoop();
-            } else {
-                cancelAnimationFrame(animRequest);
-            }
-        });
-
-        function animationLoop() {
-            if (!isAnimating || isRecording) return;
-            
-            let wSpeed = parseFloat(animSpeed.value);
-            if (wSpeed !== 0 && waveType.value !== 'none') {
-                let phase = parseFloat(wavePhase.value);
-                phase = (phase + wSpeed) % 360;
-                if (phase < 0) phase += 360;
-                wavePhase.value = phase.toFixed(2);
-            }
-
-            let fSpeed = parseFloat(flowSpeed.value);
-            if (fSpeed !== 0 && lineStyle.value !== 'solid') {
-                let fPhase = parseFloat(flowPhase.value);
-                fPhase = (fPhase + fSpeed) % 100;
-                if (fPhase < 0) fPhase += 100;
-                flowPhase.value = fPhase.toFixed(2);
-            }
-
-            updateDisplays();
-            draw();
-            animRequest = requestAnimationFrame(animationLoop);
+        function hexToRgba(hex, alpha) {
+            let ah = parseInt(hex.replace(/#/g, ''), 16);
+            return `rgba(${ah >> 16}, ${ah >> 8 & 0xff}, ${ah & 0xff}, ${alpha})`;
         }
 
-        // --- DYNAMIC OFFLINE 1080P EXPORT ENGINE ---
-        async function exportVideo() {
-            if (isRecording) return;
-            isRecording = true;
-            exportVidBtn.disabled = true;
-            
-            let rawWSpeed = parseFloat(animSpeed.value);
-            let rawFSpeed = parseFloat(flowSpeed.value);
-            let wSpeed = Math.abs(rawWSpeed);
-            let fSpeed = Math.abs(rawFSpeed);
-            
-            let isWaveActive = (wSpeed > 0 && waveType.value !== 'none');
-            let isFlowActive = (fSpeed > 0 && lineStyle.value !== 'solid');
-
-            let totalFrames = 300; 
-            let actualWSpeed = 0;
-            let actualFSpeed = 0;
-
-            if (isWaveActive && isFlowActive) {
-                let wFrames = 360 / wSpeed;
-                let fFrames = 100 / fSpeed;
-                if (wFrames > fFrames) {
-                    totalFrames = Math.round(wFrames);
-                    let cycles = Math.round(totalFrames / fFrames) || 1;
-                    actualWSpeed = 360 / totalFrames;
-                    actualFSpeed = (100 * cycles) / totalFrames;
-                } else {
-                    totalFrames = Math.round(fFrames);
-                    let cycles = Math.round(totalFrames / wFrames) || 1;
-                    actualFSpeed = 100 / totalFrames;
-                    actualWSpeed = (360 * cycles) / totalFrames;
-                }
-            } else if (isWaveActive) {
-                totalFrames = Math.round(360 / wSpeed);
-                actualWSpeed = 360 / totalFrames;
-            } else if (isFlowActive) {
-                totalFrames = Math.round(100 / fSpeed);
-                actualFSpeed = 100 / totalFrames;
-            }
-
-            if (rawWSpeed < 0) actualWSpeed *= -1;
-            if (rawFSpeed < 0) actualFSpeed *= -1;
-
-            let currentFrame = 0;
-            let framesEncoded = 0; 
-            let isEncoderError = false;
-
-            let startWPhase = parseFloat(wavePhase.value);
-            let startFPhase = parseFloat(flowPhase.value);
-
-            function finishExport() {
-                isRecording = false;
-                exportVidBtn.disabled = false;
-                exportVidBtn.innerText = "Export Looping Video (1080p 60FPS)";
-                if (isAnimating) animationLoop(); 
-            }
-
-            function runFallback() {
-                exportVidBtn.innerText = "Recording Fallback... Please wait";
-                const canvas = document.createElement('canvas');
-                canvas.width = 1080;
-                canvas.height = 1080;
-                const ctx = canvas.getContext('2d');
-                
-                let mimeType = 'video/mp4';
-                if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'video/webm'; 
-                }
-                
-                let stream, recorder;
-                const chunks = [];
-
-                function renderRealtimeFrame() {
-                    if (currentFrame >= totalFrames) { 
-                        recorder.stop();
-                        return;
-                    }
-                    
-                    if (isWaveActive) {
-                        wavePhase.value = (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360;
-                    }
-                    if (isFlowActive) {
-                        flowPhase.value = ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100).toFixed(2);
-                    }
-
-                    updateDisplays();
-                    draw();
-                    
-                    svg.setAttribute('width', '1080');
-                    svg.setAttribute('height', '1080');
-                    const serializer = new XMLSerializer();
-                    let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(svg);
-                    svg.removeAttribute('width');
-                    svg.removeAttribute('height');
-                    
-                    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-                    const url = URL.createObjectURL(blob);
-                    const img = new Image();
-                    img.onload = function() {
-                        ctx.fillStyle = bgColor.value;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        URL.revokeObjectURL(url);
-                        
-                        if (currentFrame === 0) {
-                            stream = canvas.captureStream(60); 
-                            recorder = new MediaRecorder(stream, { mimeType: mimeType, videoBitsPerSecond: 20000000 });
-                            recorder.ondataavailable = function(e) { chunks.push(e.data); };
-                            recorder.onstop = function() {
-                                const finalUrl = URL.createObjectURL(new Blob(chunks, { type: mimeType }));
-                                const a = document.createElement('a');
-                                a.href = finalUrl;
-                                let ext = mimeType.split('/')[1];
-                                if (ext.indexOf(';') !== -1) ext = ext.split(';')[0];
-                                a.download = 'geometrica_1080p_60fps.' + ext;
-                                a.click();
-                                finishExport();
-                            };
-                            recorder.start();
-                        }
-                        
-                        currentFrame++;
-                        setTimeout(renderRealtimeFrame, 16);
-                    };
-                    img.src = url;
-                }
-                renderRealtimeFrame();
-            }
-
-            try {
-                if (typeof VideoEncoder === "undefined" || typeof Mp4Muxer === "undefined") {
-                    throw new Error("WebCodecs API not supported on this browser.");
-                }
-
-                exportVidBtn.innerText = "Initializing 1080p Encoder...";
-                let targetWidth = 1080;
-                let targetHeight = 1080;
-                
-                const testConfigs = [
-                    { codec: 'avc1.4d002a', muxerCodec: 'avc' },    
-                    { codec: 'avc1.42002a', muxerCodec: 'avc' },    
-                    { codec: 'vp09.00.41.08', muxerCodec: 'vp9' }, 
-                    { codec: 'av01.0.08M.08', muxerCodec: 'av1' }  
-                ];
-
-                let selectedConfig = null;
-                let selectedMuxerCodec = null;
-
-                for (let i = 0; i < testConfigs.length; i++) {
-                    let tc = testConfigs[i];
-                    let config = {
-                        codec: tc.codec,
-                        width: targetWidth,
-                        height: targetHeight,
-                        bitrate: 20000000, 
-                        framerate: 60,
-                        hardwareAcceleration: "no-preference" 
-                    };
-                    try {
-                        let support = await VideoEncoder.isConfigSupported(config);
-                        if (support.supported) {
-                            selectedConfig = config;
-                            selectedMuxerCodec = tc.muxerCodec;
-                            break;
-                        }
-                    } catch (e) {}
-                }
-
-                if (!selectedConfig || !selectedMuxerCodec) {
-                    throw new Error("No hardware/software codec found for 1080p60 WebCodecs.");
-                }
-                
-                let muxer = new Mp4Muxer.Muxer({
-                    target: new Mp4Muxer.ArrayBufferTarget(),
-                    video: { codec: selectedMuxerCodec, width: targetWidth, height: targetHeight },
-                    fastStart: 'in-memory'
-                });
-
-                let videoEncoder = new VideoEncoder({
-                    output: function(chunk, meta) {
-                        framesEncoded++; 
-                        muxer.addVideoChunk(chunk, meta);
-                    },
-                    error: function(e) { 
-                        console.error("VideoEncoder crashed:", e);
-                        isEncoderError = true;
-                    }
-                });
-
-                videoEncoder.configure(selectedConfig);
-
-                const canvas = document.createElement('canvas');
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
-                const ctx = canvas.getContext('2d');
-
-                function renderOfflineFrame() {
-                    if (isEncoderError) {
-                        alert("Hardware encoding crashed! Running fallback.");
-                        runFallback();
-                        return;
-                    }
-
-                    if (currentFrame >= totalFrames) {
-                        exportVidBtn.innerText = "Finalizing Video...";
-                        videoEncoder.flush().then(function() {
-                            if (framesEncoded === 0) {
-                                console.warn("Hardware encoder dropped all frames. Running fallback.");
-                                runFallback();
-                                return;
-                            }
-                            muxer.finalize();
-                            let buffer = muxer.target.buffer;
-                            let blob = new Blob([buffer], { type: 'video/mp4' });
-                            let url = URL.createObjectURL(blob);
-                            let a = document.createElement('a');
-                            a.href = url;
-                            a.download = `geometrica_1080p_60fps.mp4`;
-                            a.click();
-                            finishExport();
-                        });
-                        return;
-                    }
-
-                    if (isWaveActive) {
-                        wavePhase.value = (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360;
-                    }
-                    if (isFlowActive) {
-                        flowPhase.value = ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100).toFixed(2);
-                    }
-
-                    updateDisplays();
-                    draw();
-
-                    svg.setAttribute('width', targetWidth.toString());
-                    svg.setAttribute('height', targetHeight.toString());
-                    const serializer = new XMLSerializer();
-                    let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(svg);
-                    svg.removeAttribute('width');
-                    svg.removeAttribute('height');
-                    
-                    const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const img = new Image();
-                    img.onload = function() {
-                        ctx.fillStyle = bgColor.value;
-                        ctx.fillRect(0, 0, targetWidth, targetHeight);
-                        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-                        URL.revokeObjectURL(url);
-                        
-                        let frame = new VideoFrame(canvas, { 
-                            timestamp: Math.round((currentFrame * 1000000) / 60),
-                            duration: Math.round(1000000 / 60)
-                        });
-                        
-                        videoEncoder.encode(frame, { keyFrame: currentFrame % 60 === 0 });
-                        frame.close();
-
-                        exportVidBtn.innerText = `Rendering 1080p... ${Math.round((currentFrame / totalFrames) * 100)}%`;
-                        currentFrame++;
-                        
-                        requestAnimationFrame(renderOfflineFrame); 
-                    };
-                    img.onerror = function() {
-                        console.error("Image render failed");
-                        runFallback();
-                    };
-                    img.src = url;
-                }
-                renderOfflineFrame();
-                
-            } catch (err) {
-                console.error("Encoder configuration failed.", err);
-                runFallback();
-            }
-        }
-
-        exportVidBtn.addEventListener('click', exportVideo);
-
-        // --- DYNAMIC OFFLINE GIF EXPORT ENGINE ---
-        async function exportGif() {
-            if (isRecording) return;
-            isRecording = true;
-            exportGifBtn.disabled = true;
-
-            let rawWSpeed = parseFloat(animSpeed.value);
-            let rawFSpeed = parseFloat(flowSpeed.value);
-            let wSpeed = Math.abs(rawWSpeed);
-            let fSpeed = Math.abs(rawFSpeed);
-            
-            let isWaveActive = (wSpeed > 0 && waveType.value !== 'none');
-            let isFlowActive = (fSpeed > 0 && lineStyle.value !== 'solid');
-
-            let totalFrames = 300; 
-            let actualWSpeed = 0;
-            let actualFSpeed = 0;
-
-            if (isWaveActive && isFlowActive) {
-                let wFrames = 360 / wSpeed;
-                let fFrames = 100 / fSpeed;
-                if (wFrames > fFrames) {
-                    totalFrames = Math.round(wFrames);
-                    let cycles = Math.round(totalFrames / fFrames) || 1;
-                    actualWSpeed = 360 / totalFrames;
-                    actualFSpeed = (100 * cycles) / totalFrames;
-                } else {
-                    totalFrames = Math.round(fFrames);
-                    let cycles = Math.round(totalFrames / wFrames) || 1;
-                    actualFSpeed = 100 / totalFrames;
-                    actualWSpeed = (360 * cycles) / totalFrames;
-                }
-            } else if (isWaveActive) {
-                totalFrames = Math.round(360 / wSpeed);
-                actualWSpeed = 360 / totalFrames;
-            } else if (isFlowActive) {
-                totalFrames = Math.round(100 / fSpeed);
-                actualFSpeed = 100 / totalFrames;
-            }
-
-            if (rawWSpeed < 0) actualWSpeed *= -1;
-            if (rawFSpeed < 0) actualFSpeed *= -1;
-
-            let currentFrame = 0;
-            let startWPhase = parseFloat(wavePhase.value);
-            let startFPhase = parseFloat(flowPhase.value);
-
-            let gif = new GIF({
-                workers: 4,
-                quality: 10,
-                width: 800, 
-                height: 800,
-                workerScript: URL.createObjectURL(new Blob(["importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');"], { type: 'text/javascript' }))
-            });
-
-            const canvas = document.createElement('canvas');
-            canvas.width = 800;
-            canvas.height = 800;
-            const ctx = canvas.getContext('2d');
-
-            function renderGifFrame() {
-                if (currentFrame >= totalFrames) {
-                    exportGifBtn.innerText = "Encoding GIF... (Please wait)";
-                    gif.render();
-                    return;
-                }
-
-                if (isWaveActive) {
-                    wavePhase.value = (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360;
-                }
-                if (isFlowActive) {
-                    flowPhase.value = ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100).toFixed(2);
-                }
-
-                updateDisplays();
-                draw();
-
-                svg.setAttribute('width', '800');
-                svg.setAttribute('height', '800');
-                const serializer = new XMLSerializer();
-                let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(svg);
-                svg.removeAttribute('width');
-                svg.removeAttribute('height');
-                
-                const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                
-                const img = new Image();
-                img.onload = function() {
-                    ctx.fillStyle = bgColor.value;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    URL.revokeObjectURL(url);
-                    
-                    gif.addFrame(canvas, { delay: 20, copy: true });
-                    
-                    exportGifBtn.innerText = `Capturing Frames... ${Math.round((currentFrame / totalFrames) * 100)}%`;
-                    currentFrame++;
-                    
-                    requestAnimationFrame(renderGifFrame);
-                };
-                img.src = url;
-            }
-
-            gif.on('finished', function(blob) {
-                const finalUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = finalUrl;
-                a.download = 'geometrica_loop_50fps.gif';
-                a.click();
-                
-                isRecording = false;
-                exportGifBtn.disabled = false;
-                exportGifBtn.innerText = "Export Looping GIF (50FPS)";
-                if (isAnimating) animationLoop(); 
-            });
-
-            exportGifBtn.innerText = "Initializing GIF Engine...";
-            renderGifFrame();
-        }
-
-        exportGifBtn.addEventListener('click', exportGif);
-
-
-        // --- PRESET LOGIC ---
-        
-        function updatePresetDropdown() {
-            presetSelect.innerHTML = '<option value="">-- Select a Saved Preset --</option>';
-            for (let i = 0; i < localStorage.length; i++) {
-                let key = localStorage.key(i);
-                if (key.startsWith('geo_preset_')) {
-                    let name = key.replace('geo_preset_', '');
-                    let opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name;
-                    presetSelect.appendChild(opt);
-                }
-            }
-        }
-
-        function savePreset() {
-            let name = presetNameInput.value.trim();
-            if (!name) {
-                presetNameInput.focus();
-                let oldPlaceholder = presetNameInput.placeholder;
-                presetNameInput.placeholder = "Please type a name!";
-                setTimeout(function() { presetNameInput.placeholder = oldPlaceholder; }, 2000);
-                return;
-            }
-            
-            let preset = {};
-            stateControls.forEach(function(id) {
-                let el = document.getElementById(id);
-                preset[id] = (el.type === 'checkbox') ? el.checked : el.value;
-            });
-            
-            localStorage.setItem('geo_preset_' + name, JSON.stringify(preset));
-            updatePresetDropdown();
-            presetSelect.value = name;
-            presetNameInput.value = ""; 
-        }
-
-        function loadPreset() {
-            let name = presetSelect.value;
-            if (!name) return;
-            
-            let data = localStorage.getItem('geo_preset_' + name);
-            if (data) {
-                let preset = JSON.parse(data);
-                stateControls.forEach(function(id) {
-                    if (preset[id] !== undefined) {
-                        let el = document.getElementById(id);
-                        if (el.type === 'checkbox') {
-                            el.checked = preset[id];
-                        } else {
-                            el.value = preset[id];
-                        }
-                    }
-                });
-                updateDisplays();
-                draw();
-                
-                isAnimating = document.getElementById('animatePhase').checked;
-                if(isAnimating) animationLoop();
-            }
-        }
-
-        function deletePreset() {
-            let name = presetSelect.value;
-            if (!name) return;
-            
-            localStorage.removeItem('geo_preset_' + name);
-            updatePresetDropdown();
-            presetSelect.value = "";
-            
-            let originalText = deletePresetBtn.textContent;
-            deletePresetBtn.textContent = "Deleted!";
-            deletePresetBtn.style.backgroundColor = "#6c757d"; 
-            setTimeout(function() {
-                deletePresetBtn.textContent = originalText;
-                deletePresetBtn.style.backgroundColor = ""; 
-            }, 1500);
-        }
-
-        function updateDisplays() {
-            linesVal.innerText = linesCount.value;
-            curveVal.innerText = parseFloat(curveAmountInput.value).toFixed(1);
-            erosionVal.innerText = parseFloat(erosionAmountInput.value).toFixed(2);
-            wAmpVal.innerText = waveAmp.value;
-            wFreqVal.innerText = waveFreq.value;
-            wPhaseVal.innerText = parseFloat(wavePhase.value).toFixed(1);
-            animSpeedVal.innerText = parseFloat(animSpeed.value).toFixed(1);
-            angleVal.innerText = angleCount.value;
-            axesVal.innerText = multiAxesCount.value;
-            polygonVal.innerText = polygonSides.value;
-            circleStepVal.innerText = circleStep.value;
-            ellipseRatioVal.innerText = parseFloat(ellipseRatio.value).toFixed(2);
-            symVal.innerText = symmetryCount.value + 'x';
-            rotVal.innerText = globalRotation.value;
-            offsetXVal.innerText = offsetInputX.value;
-            offsetYVal.innerText = offsetInputY.value;
-            zoomVal.innerText = parseFloat(zoomValue.value).toFixed(1) + 'x';
-            scaleVal.innerText = parseFloat(scaleValue.value).toFixed(2);
-            htSizeVal.innerText = parseFloat(halftoneSize.value).toFixed(1);
-            htFalloffVal.innerText = parseFloat(halftoneFalloff.value).toFixed(2);
-            fPhaseVal.innerText = parseFloat(flowPhase.value).toFixed(1);
-            fSpeedVal.innerText = parseFloat(flowSpeed.value).toFixed(2);
-            fadeVal.innerText = parseFloat(opacityFade.value).toFixed(2);
-            hIntenVal.innerText = parseFloat(highlightIntensity.value).toFixed(2);
-            widthVal.innerText = parseFloat(lineWidth.value).toFixed(1);
-            trailFramesVal.innerText = trailFrames.value;
-            trailSpacingVal.innerText = parseFloat(trailSpacing.value).toFixed(1);
-        }
-
-        // --- DRAWING ENGINE WITH MASKS & COLORS ---
-
-        function drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, targetLayer, trailIndex) {
+        function drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, isCanvasTarget, renderTarget, trailOpacity) {
             for (let i = 0; i <= steps; i++) {
                 let t = i / steps;
                 let p1x = origin[0] + (end1[0] - origin[0]) * t;
                 let p1y = origin[1] + (end1[1] - origin[1]) * t;
                 let p2x = origin[0] + (end2[0] - origin[0]) * (1 - t);
                 let p2y = origin[1] + (end2[1] - origin[1]) * (1 - t);
-                appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, targetLayer, trailIndex);
+                processCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, isCanvasTarget, renderTarget, trailOpacity);
             }
         }
 
-        function appendCurve(x1, y1, x2, y2, color, width, curveAmt, dashStyle, erosionAmt, stepIndex, totalSteps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, targetLayer, trailIndex) {
-            
+        function processCurve(x1, y1, x2, y2, color, width, curveAmt, dashStyle, erosionAmt, stepIndex, totalSteps, htSize, htFalloff, fPhase, cx, cy, r, wType, wAmp, wFreq, wPhase, isCanvasTarget, renderTarget, trailOpacity) {
             let fadeAmt = dynProps.fadeAmt;
             let hInten = dynProps.hInten;
             let hColor = dynProps.hColor;
@@ -1062,7 +596,6 @@
             }
 
             let phaseRad = wPhase * Math.PI / 180;
-            
             function getWaveVal(t) {
                 if (wType === 'none' || wAmp === 0) return 0;
                 let cycle = t * wFreq + (phaseRad / (2 * Math.PI));
@@ -1077,11 +610,9 @@
                 if (!isCurve) {
                     px = x1 + (x2 - x1) * t;
                     py = y1 + (y2 - y1) * t;
-                    let dx = x2 - x1;
-                    let dy = y2 - y1;
+                    let dx = x2 - x1; let dy = y2 - y1;
                     let len = Math.hypot(dx, dy);
-                    nx = len === 0 ? 0 : -dy / len;
-                    ny = len === 0 ? 0 : dx / len;
+                    nx = len === 0 ? 0 : -dy / len; ny = len === 0 ? 0 : dx / len;
                 } else {
                     let mt = 1 - t;
                     px = mt * mt * x1 + 2 * mt * t * cx_ctrl + t * t * x2;
@@ -1089,33 +620,20 @@
                     let dx = 2 * mt * (cx_ctrl - x1) + 2 * t * (x2 - cx_ctrl);
                     let dy = 2 * mt * (cy_ctrl - y1) + 2 * t * (y2 - cy_ctrl);
                     let len = Math.hypot(dx, dy);
-                    nx = len === 0 ? 0 : -dy / len;
-                    ny = len === 0 ? 0 : dx / len;
+                    nx = len === 0 ? 0 : -dy / len; ny = len === 0 ? 0 : dx / len;
                 }
-
-                if (wAmp > 0) {
-                    px += nx * waveVal * wAmp;
-                    py += ny * waveVal * wAmp;
-                }
+                if (wAmp > 0) { px += nx * waveVal * wAmp; py += ny * waveVal * wAmp; }
                 return {x: px, y: py};
             }
 
-            let style = document.getElementById('styleSelect').value;
+            let style = styleSelect.value;
             let maxDist = r; 
-            if (style === 'square_circle' || style === 'hourglass' || style === 'asymmetric_star' || style === 'star_center') {
-                maxDist = r * 1.45;
-            } else if (style === 'v_shape') {
-                maxDist = r * 1.8;
-            } else if (style === 'ellipse_string') {
-                let ratio = parseFloat(document.getElementById('ellipseRatio').value);
-                maxDist = r * Math.max(1.0, ratio);
-            } else {
-                maxDist = r * 1.05;
-            }
+            if (style === 'square_circle' || style === 'hourglass' || style === 'asymmetric_star' || style === 'star_center') maxDist = r * 1.45;
+            else if (style === 'v_shape') maxDist = r * 1.8;
+            else if (style === 'ellipse_string') maxDist = r * Math.max(1.0, parseFloat(ellipseRatio.value));
+            else maxDist = r * 1.05;
 
-            let distNorm = d2 / maxDist;
-            if (distNorm > 1.0) distNorm = 1.0;
-
+            let distNorm = Math.min(1.0, d2 / maxDist);
             let u = 1.0; 
             if (erosionAmt > 0) {
                 let threshold = 1.02 - (erosionAmt * 1.4); 
@@ -1124,101 +642,31 @@
                 falloff += (pseudoRandom - 0.5) * 0.4 * erosionAmt; 
                 if (falloff > 0) u = 1.0 - falloff;
             }
-
             if (u <= 0.05 && erosionAmt > 0) return; 
             if (u > 1.0) u = 1.0;
 
             let needsGradient = (fadeAmt > 0 || hInten > 0);
 
-            if (dashStyle === 'halftone') {
-                let activeDots = Math.max(2, Math.floor(35 * u)); 
-                for (let k = 0; k < activeDots; k++) {
-                    let base_t = k / activeDots;
-                    let t_norm = (base_t + fPhase) % 1.0;
-                    if (t_norm < 0) t_norm += 1.0;
-                    
-                    let t = t_norm * u;
-                    let wave_t = (anchor === 'dot') ? (base_t * u) : t;
-                    let val = getWaveVal(wave_t);
-                    let pt = getPt(t, val);
-                    
-                    let distFromCenterLine = Math.abs(t_norm - 0.5) * 2; 
-                    let dotR = htSize * (1.0 - (htFalloff * distFromCenterLine));
+            if (isCanvasTarget) {
+                let context = renderTarget; 
+                context.save();
+                context.globalAlpha = trailOpacity;
 
-                    let alpha = 1.0;
-                    if (fadeAmt > 0) {
-                        if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
-                        else if (t_norm > 1.0 - fadeAmt) alpha = (1.0 - t_norm) / fadeAmt;
-                    }
-                    alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
-
-                    let col = color;
-                    if (hInten > 0) {
-                        let blend = Math.min(1.0, Math.abs(val)) * hInten;
-                        col = lerpColorHex(color, hColor, blend);
-                    }
-                    
-                    if (dotR > 0.1 && alpha > 0.01) {
-                        let circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        circle.setAttribute('cx', pt.x.toString());
-                        circle.setAttribute('cy', pt.y.toString());
-                        circle.setAttribute('r', dotR.toString());
-                        circle.setAttribute('fill', col);
-                        circle.setAttribute('opacity', alpha.toString());
-                        targetLayer.appendChild(circle);
-                    }
-                }
-            } else {
-                let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                let d = "";
-
-                if (wType !== 'none' && wAmp > 0) {
-                    let polySteps = 150; 
-                    let actualSteps = Math.max(2, Math.floor(polySteps * u));
-                    for (let k = 0; k <= actualSteps; k++) {
-                        let t = (k / actualSteps) * u;
-                        let pt = getPt(t, getWaveVal(t));
-                        d += (k === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`);
-                    }
-                } else {
-                    if (!isCurve) {
-                        let finalX = x1 + (x2 - x1) * u;
-                        let finalY = y1 + (y2 - y1) * u;
-                        d = `M ${x1} ${y1} L ${finalX} ${finalY}`;
-                    } else {
-                        if (u < 1.0) {
-                            let Q1x = (1 - u) * x1 + u * cx_ctrl;
-                            let Q1y = (1 - u) * y1 + u * cy_ctrl;
-                            let Q2x = Math.pow(1 - u, 2) * x1 + 2 * (1 - u) * u * cx_ctrl + Math.pow(u, 2) * x2;
-                            let Q2y = Math.pow(1 - u, 2) * y1 + 2 * (1 - u) * u * cy_ctrl + Math.pow(u, 2) * y2;
-                            d = `M ${x1} ${y1} Q ${Q1x} ${Q1y} ${Q2x} ${Q2y}`;
-                        } else {
-                            d = `M ${x1} ${y1} Q ${cx_ctrl} ${cy_ctrl} ${x2} ${y2}`;
-                        }
-                    }
-                }
-                
-                path.setAttribute('d', d);
-
-                // NATIVE GPU LINEAR GRADIENT 
-                if (needsGradient) {
-                    let gradId = 'grad_' + (dynProps.gradCounter++);
-                    let grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-                    grad.setAttribute('id', gradId);
-                    grad.setAttribute('gradientUnits', 'userSpaceOnUse');
-                    
-                    let startPt = getPt(0, getWaveVal(0));
-                    let endPt = getPt(u, getWaveVal(u));
-                    grad.setAttribute('x1', startPt.x.toString());
-                    grad.setAttribute('y1', startPt.y.toString());
-                    grad.setAttribute('x2', endPt.x.toString());
-                    grad.setAttribute('y2', endPt.y.toString());
-
-                    let stopsCount = 10;
-                    for (let j = 0; j <= stopsCount; j++) {
-                        let t_norm = j / stopsCount;
-                        let t = t_norm * u;
+                if (dashStyle === 'halftone') {
+                    let activeDots = Math.max(2, Math.floor(35 * u)); 
+                    for (let k = 0; k < activeDots; k++) {
+                        let base_t = k / activeDots;
+                        let t_norm = (base_t + fPhase) % 1.0;
+                        if (t_norm < 0) t_norm += 1.0;
                         
+                        let t = t_norm * u;
+                        let wave_t = (anchor === 'dot') ? (base_t * u) : t;
+                        let val = getWaveVal(wave_t);
+                        let pt = getPt(t, val);
+                        
+                        let distFromCenterLine = Math.abs(t_norm - 0.5) * 2; 
+                        let dotR = htSize * (1.0 - (htFalloff * distFromCenterLine));
+
                         let alpha = 1.0;
                         if (fadeAmt > 0) {
                             if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
@@ -1227,328 +675,902 @@
                         alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
 
                         let col = color;
-                        if (hInten > 0) {
-                            let waveVal = getWaveVal(t);
-                            let blend = Math.min(1.0, Math.abs(waveVal)) * hInten;
-                            col = lerpColorHex(color, hColor, blend);
+                        if (hInten > 0) { col = lerpColorHex(color, hColor, Math.min(1.0, Math.abs(val)) * hInten); }
+                        
+                        if (dotR > 0.1 && alpha > 0.01) {
+                            context.beginPath();
+                            context.arc(pt.x, pt.y, dotR, 0, Math.PI * 2);
+                            context.fillStyle = col;
+                            context.globalAlpha = alpha * trailOpacity;
+                            context.fill();
                         }
-
-                        let stopEl = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-                        stopEl.setAttribute('offset', (t_norm * 100) + '%');
-                        stopEl.setAttribute('stop-color', col);
-                        stopEl.setAttribute('stop-opacity', alpha.toString());
-                        grad.appendChild(stopEl);
                     }
-                    document.getElementById('grad-defs').appendChild(grad);
-                    path.setAttribute('stroke', `url(#${gradId})`);
                 } else {
-                    path.setAttribute('stroke', color);
-                    path.setAttribute('opacity', '0.85');
-                }
+                    context.beginPath();
+                    if (wType !== 'none' && wAmp > 0) {
+                        let actualSteps = Math.max(2, Math.floor(150 * u));
+                        for (let k = 0; k <= actualSteps; k++) {
+                            let t = (k / actualSteps) * u;
+                            let pt = getPt(t, getWaveVal(t));
+                            if (k === 0) context.moveTo(pt.x, pt.y);
+                            else context.lineTo(pt.x, pt.y);
+                        }
+                    } else {
+                        context.moveTo(x1, y1);
+                        if (!isCurve) {
+                            context.lineTo(x1 + (x2 - x1) * u, y1 + (y2 - y1) * u);
+                        } else {
+                            if (u < 1.0) {
+                                let Q1x = (1 - u) * x1 + u * cx_ctrl; let Q1y = (1 - u) * y1 + u * cy_ctrl;
+                                let Q2x = Math.pow(1 - u, 2) * x1 + 2 * (1 - u) * u * cx_ctrl + Math.pow(u, 2) * x2;
+                                let Q2y = Math.pow(1 - u, 2) * y1 + 2 * (1 - u) * u * cy_ctrl + Math.pow(u, 2) * y2;
+                                context.quadraticCurveTo(Q1x, Q1y, Q2x, Q2y);
+                            } else {
+                                context.quadraticCurveTo(cx_ctrl, cy_ctrl, x2, y2);
+                            }
+                        }
+                    }
 
-                if (dashStyle === 'dashed') {
-                    path.setAttribute('stroke-dasharray', '8 6');
-                    path.setAttribute('stroke-dashoffset', (-fPhase * 140).toString()); 
-                } else if (dashStyle === 'dotted') {
-                    path.setAttribute('stroke-dasharray', '2 6');
-                    path.setAttribute('stroke-linecap', 'round');
-                    path.setAttribute('stroke-dashoffset', (-fPhase * 80).toString()); 
+                    if (needsGradient) {
+                        let startPt = getPt(0, getWaveVal(0));
+                        let endPt = getPt(u, getWaveVal(u));
+                        let grad = context.createLinearGradient(startPt.x, startPt.y, endPt.x, endPt.y);
+                        let stopsCount = 10;
+                        for (let j = 0; j <= stopsCount; j++) {
+                            let t_norm = j / stopsCount;
+                            let alpha = 1.0;
+                            if (fadeAmt > 0) {
+                                if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
+                                else if (t_norm > 1.0 - fadeAmt) alpha = (1.0 - t_norm) / fadeAmt;
+                            }
+                            alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
+                            let col = color;
+                            if (hInten > 0) col = lerpColorHex(color, hColor, Math.min(1.0, Math.abs(getWaveVal(t_norm * u))) * hInten);
+                            grad.addColorStop(t_norm, hexToRgba(col, alpha));
+                        }
+                        context.strokeStyle = grad;
+                    } else {
+                        context.strokeStyle = color;
+                        context.globalAlpha = 0.85 * trailOpacity;
+                    }
+
+                    context.lineWidth = width;
+                    if (dashStyle === 'dashed') {
+                        context.setLineDash([8, 6]);
+                        context.lineDashOffset = -fPhase * 140;
+                    } else if (dashStyle === 'dotted') {
+                        context.setLineDash([2, 6]);
+                        context.lineCap = 'round';
+                        context.lineDashOffset = -fPhase * 80;
+                    } else {
+                        context.setLineDash([]);
+                    }
+                    context.stroke();
                 }
+                context.restore();
+            } 
+            else {
+                let targetLayer = renderTarget; 
+                let group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                if (trailOpacity < 1.0) group.setAttribute('opacity', trailOpacity.toString());
                 
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke-width', width.toString());
-                targetLayer.appendChild(path);
+                if (dashStyle === 'halftone') {
+                    let activeDots = Math.max(2, Math.floor(35 * u)); 
+                    for (let k = 0; k < activeDots; k++) {
+                        let base_t = k / activeDots;
+                        let t_norm = (base_t + fPhase) % 1.0;
+                        if (t_norm < 0) t_norm += 1.0;
+                        
+                        let t = t_norm * u;
+                        let wave_t = (anchor === 'dot') ? (base_t * u) : t;
+                        let val = getWaveVal(wave_t);
+                        let pt = getPt(t, val);
+                        
+                        let distFromCenterLine = Math.abs(t_norm - 0.5) * 2; 
+                        let dotR = htSize * (1.0 - (htFalloff * distFromCenterLine));
+
+                        let alpha = 1.0;
+                        if (fadeAmt > 0) {
+                            if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
+                            else if (t_norm > 1.0 - fadeAmt) alpha = (1.0 - t_norm) / fadeAmt;
+                        }
+                        alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
+                        let col = color;
+                        if (hInten > 0) col = lerpColorHex(color, hColor, Math.min(1.0, Math.abs(val)) * hInten);
+                        
+                        if (dotR > 0.1 && alpha > 0.01) {
+                            let circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                            circle.setAttribute('cx', pt.x.toString()); circle.setAttribute('cy', pt.y.toString());
+                            circle.setAttribute('r', dotR.toString());
+                            circle.setAttribute('fill', col); circle.setAttribute('opacity', alpha.toString());
+                            group.appendChild(circle);
+                        }
+                    }
+                } else {
+                    let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    let d = "";
+                    if (wType !== 'none' && wAmp > 0) {
+                        let actualSteps = Math.max(2, Math.floor(150 * u));
+                        for (let k = 0; k <= actualSteps; k++) {
+                            let pt = getPt((k / actualSteps) * u, getWaveVal((k / actualSteps) * u));
+                            d += (k === 0 ? `M ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`);
+                        }
+                    } else {
+                        if (!isCurve) {
+                            d = `M ${x1} ${y1} L ${x1 + (x2 - x1) * u} ${y1 + (y2 - y1) * u}`;
+                        } else {
+                            if (u < 1.0) {
+                                let Q1x = (1 - u) * x1 + u * cx_ctrl; let Q1y = (1 - u) * y1 + u * cy_ctrl;
+                                let Q2x = Math.pow(1 - u, 2) * x1 + 2 * (1 - u) * u * cx_ctrl + Math.pow(u, 2) * x2;
+                                let Q2y = Math.pow(1 - u, 2) * y1 + 2 * (1 - u) * u * cy_ctrl + Math.pow(u, 2) * y2;
+                                d = `M ${x1} ${y1} Q ${Q1x} ${Q1y} ${Q2x} ${Q2y}`;
+                            } else {
+                                d = `M ${x1} ${y1} Q ${cx_ctrl} ${cy_ctrl} ${x2} ${y2}`;
+                            }
+                        }
+                    }
+                    path.setAttribute('d', d);
+
+                    if (needsGradient) {
+                        let gradId = 'grad_' + (dynProps.gradCounter++);
+                        let grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+                        grad.setAttribute('id', gradId); grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+                        let startPt = getPt(0, getWaveVal(0)); let endPt = getPt(u, getWaveVal(u));
+                        grad.setAttribute('x1', startPt.x.toString()); grad.setAttribute('y1', startPt.y.toString());
+                        grad.setAttribute('x2', endPt.x.toString()); grad.setAttribute('y2', endPt.y.toString());
+
+                        for (let j = 0; j <= 10; j++) {
+                            let t_norm = j / 10;
+                            let alpha = 1.0;
+                            if (fadeAmt > 0) {
+                                if (t_norm < fadeAmt) alpha = t_norm / fadeAmt;
+                                else if (t_norm > 1.0 - fadeAmt) alpha = (1.0 - t_norm) / fadeAmt;
+                            }
+                            alpha = Math.max(0, Math.min(1, alpha)) * 0.85;
+                            let col = color;
+                            if (hInten > 0) col = lerpColorHex(color, hColor, Math.min(1.0, Math.abs(getWaveVal(t_norm * u))) * hInten);
+
+                            let stopEl = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                            stopEl.setAttribute('offset', (t_norm * 100) + '%');
+                            stopEl.setAttribute('stop-color', col); stopEl.setAttribute('stop-opacity', alpha.toString());
+                            grad.appendChild(stopEl);
+                        }
+                        dynProps.gradDefs.appendChild(grad);
+                        path.setAttribute('stroke', `url(#${gradId})`);
+                    } else {
+                        path.setAttribute('stroke', color); path.setAttribute('opacity', '0.85');
+                    }
+
+                    path.setAttribute('fill', 'none'); path.setAttribute('stroke-width', width.toString());
+                    if (dashStyle === 'dashed') { path.setAttribute('stroke-dasharray', '8 6'); path.setAttribute('stroke-dashoffset', (-fPhase * 140).toString()); } 
+                    else if (dashStyle === 'dotted') { path.setAttribute('stroke-dasharray', '2 6'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-dashoffset', (-fPhase * 80).toString()); }
+                    group.appendChild(path);
+                }
+                targetLayer.appendChild(group);
             }
         }
 
-        function draw() {
-            while (svg.firstChild) {
-                svg.removeChild(svg.firstChild);
+                function buildGeometry(isCanvasTarget, target, style, steps, cx, cy, r, curveAmt, color, width, dashStyle, erosionAmt, htSize, htFalloff, wType, wAmp, wFreq, frameWPhase, frameFPhase, trailOpacity, scale) {
+            
+            // Safely fetch DOM values
+            let circleStepVal = parseInt(document.getElementById('circleStep').value) || 1;
+            let ellipseRatioVal = parseFloat(document.getElementById('ellipseRatio').value) || 0.6;
+            let angleCountVal = parseInt(document.getElementById('angleCount').value) || 60;
+            let multiAxesCountVal = parseInt(document.getElementById('multiAxesCount').value) || 6;
+            let polygonSidesVal = parseInt(document.getElementById('polygonSides').value) || 6;
+            
+            // 1. Circular Mandala
+            if (style === 'circle_string') {
+                document.getElementById('circleStep').max = (steps - 1).toString(); 
+                for(let i = 0; i < steps; i++) {
+                    let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2); let a2 = ((i + circleStepVal) % steps) / steps * 2 * Math.PI - (Math.PI/2);
+                    let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1); let p2x = cx + r * Math.cos(a2); let p2y = cy + r * Math.sin(a2);
+                    processCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            } 
+            
+            // 2. Elliptical Mandala
+            else if (style === 'ellipse_string') {
+                document.getElementById('circleStep').max = (steps - 1).toString(); let rx = r; let ry = r * ellipseRatioVal;
+                for(let i = 0; i < steps; i++) {
+                    let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2); let a2 = ((i + circleStepVal) % steps) / steps * 2 * Math.PI - (Math.PI/2);
+                    let p1x = cx + rx * Math.cos(a1); let p1y = cy + ry * Math.sin(a1); let p2x = cx + rx * Math.cos(a2); let p2y = cy + ry * Math.sin(a2);
+                    processCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            } 
+            
+            // 3. Single Angle (V-Shape)
+            else if (style === 'v_shape') {
+                let angleRad = angleCountVal * Math.PI / 180;
+                let origin = [cx, cy + (200 * scale)]; let halfAngle = angleRad / 2;
+                let length = Math.min((230 * scale) / Math.sin(halfAngle), (400 * scale) / Math.cos(halfAngle));
+                let end1 = [origin[0] + length * Math.cos(-Math.PI/2 - halfAngle), origin[1] + length * Math.sin(-Math.PI/2 - halfAngle)];
+                let end2 = [origin[0] + length * Math.cos(-Math.PI/2 + halfAngle), origin[1] + length * Math.sin(-Math.PI/2 + halfAngle)];
+                drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
             }
             
-            let style = styleSelect.value;
-            let steps = parseInt(linesCount.value);
-            let curveAmt = parseFloat(curveAmountInput.value);
-            let erosionAmt = parseFloat(erosionAmountInput.value);
-            let background = bgColor.value;
-            let color = lineColor.value;
-            let width = parseFloat(lineWidth.value);
-            let scale = parseFloat(scaleValue.value);
-            let symmetry = parseInt(symmetryCount.value);
-            let mirror = mirrorSymmetry.checked;
-            let rotation = parseInt(globalRotation.value);
+            // 4. Concentric Tunnel
+            else if (style === 'circle_to_circle') {
+                document.getElementById('circleStep').max = (steps - 1).toString();
+                let innerR = r * 0.3; // 30% size inner circle
+                for(let i = 0; i < steps; i++) {
+                    let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2); 
+                    let a2 = ((i + circleStepVal) % steps) / steps * 2 * Math.PI - (Math.PI/2);
+                    let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1);
+                    let p2x = cx + innerR * Math.cos(a2); let p2y = cy + innerR * Math.sin(a2);
+                    processCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            }
+
+            // 5. Star (Center Outward)
+            else if (style === 'star_center') {
+                let axes = multiAxesCountVal;
+                for(let i = 0; i < steps; i++) {
+                    let angle = (i / steps) * 2 * Math.PI - (Math.PI/2);
+                    // Sine wave modulation of the radius to create star points
+                    let modR = r * (0.6 + 0.4 * Math.cos(axes * angle));
+                    let p2x = cx + modR * Math.cos(angle); let p2y = cy + modR * Math.sin(angle);
+                    processCurve(cx, cy, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            }
+
+            // 6. Double Hourglass (Woven)
+            else if (style === 'hourglass') {
+                let w = r * 0.8;
+                for(let i = 0; i <= steps; i++) {
+                    let t = i / steps;
+                    
+                    // Top horizontal to Bottom horizontal (inverted)
+                    let p1x = cx - w + (2 * w * t); let p1y = cy - w;
+                    let p2x = cx + w - (2 * w * t); let p2y = cy + w;
+                    processCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                    
+                    // Left vertical to Right vertical (inverted)
+                    let p3x = cx - w; let p3y = cy - w + (2 * w * t);
+                    let p4x = cx + w; let p4y = cy + w - (2 * w * t);
+                    processCurve(p3x, p3y, p4x, p4y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            }
+            
+            // 7. Polygon Ring
+            else if (style === 'polygon_ring' || style === 'square_circle' || style === 'asymmetric_star') {
+                let sides = polygonSidesVal;
+                if (style === 'square_circle') sides = 4;
+                if (style === 'asymmetric_star') sides = 3;
+                
+                document.getElementById('circleStep').max = (steps - 1).toString();
+                
+                // Helper function to walk the perimeter of a regular N-sided polygon
+                function getPolyPoint(percent) {
+                    let angleStep = (Math.PI * 2) / sides;
+                    let segment = Math.floor(percent * sides);
+                    let localPercent = (percent * sides) - segment;
+                    
+                    let a1 = segment * angleStep - (Math.PI / 2);
+                    let a2 = (segment + 1) * angleStep - (Math.PI / 2);
+                    
+                    let px1 = cx + r * Math.cos(a1); let py1 = cy + r * Math.sin(a1);
+                    let px2 = cx + r * Math.cos(a2); let py2 = cy + r * Math.sin(a2);
+                    
+                    return { x: px1 + (px2 - px1) * localPercent, y: py1 + (py2 - py1) * localPercent };
+                }
+
+                for(let i = 0; i < steps; i++) {
+                    let p1 = getPolyPoint(i / steps);
+                    let p2 = getPolyPoint(((i + circleStepVal) % steps) / steps);
+                    processCurve(p1.x, p1.y, p2.x, p2.y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            }
+
+            // 8. Custom Multi-Axis Star (Fallback for Arc Shell / Double Arc)
+            else {
+                let axes = multiAxesCountVal;
+                let points = [];
+                for(let i = 0; i < axes; i++) {
+                    points.push([cx + r * Math.cos(i * (2 * Math.PI / axes) - (Math.PI/2)), cy + r * Math.sin(i * (2 * Math.PI / axes) - (Math.PI/2))]);
+                }
+                for(let i = 0; i < axes; i++) {
+                    drawCorner([cx, cy], points[i], points[(i+1) % axes], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, isCanvasTarget, target, trailOpacity);
+                }
+            }
+        }
+
+        function drawLiveCanvas(forceWPhase = null, forceFPhase = null, exportCtx = null, exportSize = 1080) {
+            let logicalSize = exportCtx ? exportSize : resizeCanvas();
+            let zoom = parseFloat(zoomValue.value);
+            
+            let viewScale = (logicalSize / 500) * zoom;
+            let currentCtx = exportCtx || ctx;
+            
+            currentCtx.fillStyle = bgColor.value;
+            currentCtx.fillRect(0, 0, currentCtx.canvas.width, currentCtx.canvas.height);
+
+            baseCanvas.width = 500 * viewScale;
+            baseCanvas.height = 500 * viewScale;
+            baseCtx.setTransform(1, 0, 0, 1, 0, 0);
+            baseCtx.scale(viewScale, viewScale);
+            
             let offX = parseInt(offsetInputX.value);
             let offY = parseInt(offsetInputY.value);
-            let dashStyle = lineStyle.value;
-            let htSize = parseFloat(halftoneSize.value);
-            let htFalloff = parseFloat(halftoneFalloff.value);
-            let fPhase = parseFloat(flowPhase.value) / 100.0;
-            let zoom = parseFloat(zoomValue.value);
+            let cx = 250 + offX; let cy = 250 + offY;
 
-            let wType = waveType.value;
-            let wAmp = parseFloat(waveAmp.value);
-            let wFreq = parseFloat(waveFreq.value);
-            let wPhase = parseFloat(wavePhase.value);
+            let style = styleSelect.value; let steps = parseInt(linesCount.value);
+            let curveAmt = parseFloat(curveAmountInput.value); let erosionAmt = parseFloat(erosionAmountInput.value);
+            let color = lineColor.value; let width = parseFloat(lineWidth.value);
+            let scale = parseFloat(scaleValue.value); let r = 230 * scale;
+            let dashStyle = lineStyle.value; let htSize = parseFloat(halftoneSize.value); let htFalloff = parseFloat(halftoneFalloff.value);
+            let wType = waveType.value; let wAmp = parseFloat(waveAmp.value); let wFreq = parseFloat(waveFreq.value);
+            
+            let wPhase = forceWPhase !== null ? forceWPhase : parseFloat(wavePhase.value);
+            let fPhase = forceFPhase !== null ? forceFPhase : parseFloat(flowPhase.value) / 100.0;
+            
+            dynProps.fadeAmt = parseFloat(opacityFade.value); dynProps.hColor = highlightColor.value;
+            dynProps.hInten = parseFloat(highlightIntensity.value); dynProps.anchor = colorAnchor.value;
 
-            // Populate the shared struct for appendCurve calculations
-            dynProps.fadeAmt = parseFloat(opacityFade.value);
-            dynProps.hColor = highlightColor.value;
-            dynProps.hInten = parseFloat(highlightIntensity.value);
-            dynProps.anchor = colorAnchor.value;
-            dynProps.gradCounter = 0; // Fast integer IDs
-
-            let tFrames = parseInt(trailFrames.value);
-            let tSpacing = parseFloat(trailSpacing.value);
-            let baseWSpeed = parseFloat(animSpeed.value);
-            let baseFSpeed = parseFloat(flowSpeed.value);
-
-            // Optimization: Do not render ghosts if the timeline is frozen
+            let tFrames = parseInt(trailFrames.value); let tSpacing = parseFloat(trailSpacing.value);
+            let baseWSpeed = parseFloat(animSpeed.value); let baseFSpeed = parseFloat(flowSpeed.value);
             let hasMotion = (baseWSpeed !== 0 && wType !== 'none') || (baseFSpeed !== 0 && dashStyle !== 'solid');
             let effectiveTrailFrames = hasMotion ? tFrames : 0;
 
-            svg.style.backgroundColor = background;
-
-            let vbSize = 500 / zoom;
-            let vbMinX = 250 - (vbSize / 2);
-            let vbMinY = 250 - (vbSize / 2);
-            svg.setAttribute('viewBox', `${vbMinX} ${vbMinY} ${vbSize} ${vbSize}`);
-
-            let bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            bgRect.setAttribute('x', vbMinX.toString());
-            bgRect.setAttribute('y', vbMinY.toString());
-            bgRect.setAttribute('width', vbSize.toString());
-            bgRect.setAttribute('height', vbSize.toString());
-            bgRect.setAttribute('fill', background);
-            svg.appendChild(bgRect);
-
-            // Container for dynamic native gradients
-            let gradDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            gradDefs.setAttribute('id', 'grad-defs');
-            svg.appendChild(gradDefs);
-
-            let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            baseLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            baseLayer.setAttribute('id', 'base-layer');
-            defs.appendChild(baseLayer);
-            svg.appendChild(defs);
-
-            let mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            mainGroup.setAttribute('transform', `rotate(${rotation}, 250, 250)`);
-            svg.appendChild(mainGroup);
-
-            let cx = 250 + offX; 
-            let cy = 250 + offY;
-            let r = 230 * scale; 
-            let minB = cx - r;
-            let maxB = cx + r;
-
-            angleControl.style.display = (style === 'v_shape') ? 'flex' : 'none';
-            axesControl.style.display = (style === 'multi_axis') ? 'flex' : 'none';
-            polygonControl.style.display = (style === 'polygon_ring') ? 'flex' : 'none';
-            circleStepControl.style.display = (style === 'circle_string' || style === 'ellipse_string' || style === 'circle_to_circle') ? 'flex' : 'none';
-            ellipseRatioControl.style.display = (style === 'ellipse_string') ? 'flex' : 'none';
-            
-            flowControls.style.display = (dashStyle !== 'solid') ? 'block' : 'none';
-            halftoneSizeControl.style.display = (dashStyle === 'halftone') ? 'flex' : 'none';
-            halftoneFalloffControl.style.display = (dashStyle === 'halftone') ? 'flex' : 'none';
-            halftoneAnchorControl.style.display = (dashStyle === 'halftone') ? 'flex' : 'none';
-            waveParamsControl.style.display = (wType !== 'none') ? 'block' : 'none';
-
-            // THE TRAIL LOOP (Renders older ghosts first, current frame last)
             for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
                 let offsetMultiplier = trail * tSpacing;
-                
                 let frameWPhase = wPhase;
-                if (baseWSpeed !== 0 && wType !== 'none') {
-                    frameWPhase = (wPhase - (baseWSpeed * offsetMultiplier)) % 360;
-                    if (frameWPhase < 0) frameWPhase += 360;
-                }
-
+                if (baseWSpeed !== 0 && wType !== 'none') frameWPhase = (((wPhase - (baseWSpeed * offsetMultiplier)) % 360) + 360) % 360;
                 let frameFPhase = fPhase;
-                if (baseFSpeed !== 0 && dashStyle !== 'solid') {
-                    frameFPhase = (fPhase - (baseFSpeed * offsetMultiplier / 100.0)) % 1.0;
-                    if (frameFPhase < 0) frameFPhase += 1.0;
-                }
-
+                if (baseFSpeed !== 0 && dashStyle !== 'solid') frameFPhase = (((fPhase - (baseFSpeed * offsetMultiplier / 100.0)) % 1.0) + 1.0) % 1.0;
                 let trailOpacity = (effectiveTrailFrames === 0) ? 1.0 : 1.0 - Math.pow(trail / effectiveTrailFrames, 1.2);
                 if (trailOpacity <= 0.01 && trail > 0) continue;
 
-                let frameGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                if (effectiveTrailFrames > 0) {
-                    frameGroup.setAttribute('opacity', trailOpacity.toString());
-                }
-                baseLayer.appendChild(frameGroup);
+                buildGeometry(true, baseCtx, style, steps, cx, cy, r, curveAmt, color, width, dashStyle, erosionAmt, htSize, htFalloff, wType, wAmp, wFreq, frameWPhase, frameFPhase, trailOpacity, scale);
+            }
 
-                // GENERATE GEOMETRY FOR THIS SPECIFIC TRAIL FRAME
-                if (style === 'circle_string') {
-                    let stepOffset = parseInt(circleStep.value);
-                    circleStep.max = (steps - 1).toString(); 
-                    for(let i = 0; i < steps; i++) {
-                        let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
-                        let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
-                        let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1);
-                        let p2x = cx + r * Math.cos(a2); let p2y = cy + r * Math.sin(a2);
-                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'ellipse_string') {
-                    let stepOffset = parseInt(circleStep.value);
-                    let ratio = parseFloat(ellipseRatio.value);
-                    circleStep.max = (steps - 1).toString(); 
-                    let rx = r;
-                    let ry = r * ratio;
-                    for(let i = 0; i < steps; i++) {
-                        let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
-                        let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
-                        let p1x = cx + rx * Math.cos(a1); let p1y = cy + ry * Math.sin(a1);
-                        let p2x = cx + rx * Math.cos(a2); let p2y = cy + ry * Math.sin(a2);
-                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'circle_to_circle') {
-                    let stepOffset = parseInt(circleStep.value);
-                    circleStep.max = (steps - 1).toString(); 
-                    let innerR = r * 0.35; 
-                    for(let i = 0; i < steps; i++) {
-                        let a1 = (i / steps) * 2 * Math.PI - (Math.PI/2);
-                        let a2 = ((i + stepOffset) % steps) / steps * 2 * Math.PI - (Math.PI/2);
-                        let p1x = cx + r * Math.cos(a1); let p1y = cy + r * Math.sin(a1); 
-                        let p2x = cx + innerR * Math.cos(a2); let p2y = cy + innerR * Math.sin(a2); 
-                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps - 1, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'arc_shell') {
-                    for(let i = 0; i <= steps; i++) {
-                        let t = i / steps;
-                        let p1x = cx - r + (2 * r * t); let p1y = cy + (r * 0.7); 
-                        let angle = Math.PI - (t * Math.PI); 
-                        let p2x = cx + r * Math.cos(angle); let p2y = cy + (r * 0.7) - r * Math.sin(angle);
-                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'double_arc') {
-                    for(let i = 0; i <= steps; i++) {
-                        let t = i / steps;
-                        let a1 = -(Math.PI/2) + (t * Math.PI); 
-                        let p1x = (cx - r/2) + (r * 1.2) * Math.cos(a1); let p1y = cy + (r * 1.2) * Math.sin(a1);
-                        let a2 = (Math.PI/2) + (t * Math.PI);
-                        let p2x = (cx + r/2) + (r * 1.2) * Math.cos(a2); let p2y = cy + (r * 1.2) * Math.sin(a2);
-                        appendCurve(p1x, p1y, p2x, p2y, color, width, curveAmt, dashStyle, erosionAmt, i, steps, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'v_shape') {
-                    let angleRad = parseInt(angleCount.value) * Math.PI / 180;
-                    let origin = [cx, cy + (200 * scale)]; 
-                    let halfAngle = angleRad / 2;
-                    let maxHorizontalLength = (230 * scale) / Math.sin(halfAngle);
-                    let maxVerticalLength = (400 * scale) / Math.cos(halfAngle);
-                    let length = Math.min(maxHorizontalLength, maxVerticalLength);
-                    let leftAngle = -Math.PI/2 - halfAngle; let rightAngle = -Math.PI/2 + halfAngle;
-                    let end1 = [ origin[0] + length * Math.cos(leftAngle), origin[1] + length * Math.sin(leftAngle) ];
-                    let end2 = [ origin[0] + length * Math.cos(rightAngle), origin[1] + length * Math.sin(rightAngle) ];
-                    drawCorner(origin, end1, end2, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                }
-                else if (style === 'multi_axis') {
-                    let axes = parseInt(multiAxesCount.value);
-                    let points = [];
-                    for(let i = 0; i < axes; i++) {
-                        let a = i * (2 * Math.PI / axes) - (Math.PI/2);
-                        points.push([ cx + r * Math.cos(a), cy + r * Math.sin(a) ]);
-                    }
-                    for(let i = 0; i < axes; i++) {
-                        drawCorner([cx, cy], points[i], points[(i+1) % axes], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'polygon_ring') {
-                    let sides = parseInt(polygonSides.value);
-                    let v = [];
-                    for(let i = 0; i < sides; i++) {
-                        let a = i * (2 * Math.PI / sides) - (Math.PI/2);
-                        v.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
-                    }
-                    for(let i = 0; i < sides; i++) {
-                        let prev = v[(i - 1 + sides) % sides]; let curr = v[i]; let next = v[(i + 1) % sides];
-                        drawCorner(curr, prev, next, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    }
-                }
-                else if (style === 'square_circle') {
-                    drawCorner([maxB, minB], [minB, minB], [maxB, maxB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                    drawCorner([maxB, maxB], [maxB, minB], [minB, maxB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                    drawCorner([minB, maxB], [maxB, maxB], [minB, minB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                    drawCorner([minB, minB], [minB, maxB], [maxB, minB], steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                } 
-                else if (style === 'star_center') {
-                    let n = [cx, minB], s = [cx, maxB], e = [maxB, cy], w = [minB, cy];
-                    drawCorner([cx, cy], n, e, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    drawCorner([cx, cy], e, s, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    drawCorner([cx, cy], s, w, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    drawCorner([cx, cy], w, n, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                }
-                else if (style === 'asymmetric_star') {
-                    let origin = [cx - (130 * scale), cy - (130 * scale)]; 
-                    let tl = [minB, minB], tr = [maxB, minB], br = [maxB, maxB], bl = [minB, maxB];
-                    drawCorner(origin, tl, tr, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    drawCorner(origin, tr, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    drawCorner(origin, br, bl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                    drawCorner(origin, bl, tl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail);
-                }
-                else if (style === 'hourglass') {
-                    let tl = [minB, minB], tr = [maxB, minB], bl = [minB, maxB], br = [maxB, maxB];
-                    let center = [cx, cy];
-                    drawCorner(center, tl, tr, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                    drawCorner(center, bl, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                    drawCorner(center, tl, bl, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                    drawCorner(center, tr, br, steps, color, width, curveAmt, dashStyle, erosionAmt, htSize, htFalloff, frameFPhase, cx, cy, r, wType, wAmp, wFreq, frameWPhase, frameGroup, trail); 
-                }
-            } // END TRAIL LOOP
+            let lMode = document.getElementById('layoutMode').value;
+            let iterations = 1;
+            if (lMode === 'radial') iterations = parseInt(symmetryCount.value);
+            else if (lMode === 'spiral') iterations = parseInt(spiralSteps.value);
+            else if (lMode === 'linear') iterations = parseInt(linearCopies.value);
+            
+            let sTwist = parseFloat(spiralTwist.value) * (Math.PI / 180);
+            let sShrink = parseFloat(spiralShrink.value);
+            let lX = parseFloat(linearX.value);
+            let lY = parseFloat(linearY.value);
 
-            for (let i = 0; i < symmetry; i++) {
-                let angle = i * (360 / symmetry);
+            let mirror = mirrorSymmetry.checked;
+            let rotation = parseInt(globalRotation.value) * (Math.PI / 180);
+
+            currentCtx.save();
+            if (!exportCtx) currentCtx.scale(viewScale, viewScale); 
+            if (exportCtx) currentCtx.scale(exportSize/500, exportSize/500);
+
+            currentCtx.translate(250, 250); currentCtx.rotate(rotation); currentCtx.translate(-250, -250);
+
+            for (let i = 0; i < iterations; i++) {
+                currentCtx.save();
+                currentCtx.translate(250, 250);
                 
-                let clone = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-                clone.setAttribute('href', '#base-layer');
-                clone.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#base-layer');
-                clone.setAttribute('transform', `rotate(${angle}, 250, 250)`);
-                mainGroup.appendChild(clone);
+                if (lMode === 'radial') {
+                    currentCtx.rotate(i * (2 * Math.PI / iterations));
+                } else if (lMode === 'spiral') {
+                    let s = Math.pow(sShrink, i);
+                    currentCtx.rotate(i * sTwist);
+                    currentCtx.scale(s, s);
+                } else if (lMode === 'linear') {
+                    let startOffX = -((iterations - 1) * lX) / 2;
+                    let startOffY = -((iterations - 1) * lY) / 2;
+                    currentCtx.translate(startOffX + i * lX, startOffY + i * lY);
+                }
+                
+                currentCtx.translate(-250, -250);
+                currentCtx.drawImage(baseCanvas, 0, 0, 500, 500);
 
                 if (mirror) {
+                    currentCtx.save();
+                    currentCtx.translate(500, 0); 
+                    currentCtx.scale(-1, 1);
+                    currentCtx.drawImage(baseCanvas, 0, 0, 500, 500);
+                    currentCtx.restore();
+                }
+                currentCtx.restore();
+            }
+            currentCtx.restore();
+        }
+
+        function generateExportSVG() {
+            while (exportSvg.firstChild) exportSvg.removeChild(exportSvg.firstChild);
+            
+            let style = styleSelect.value; let steps = parseInt(linesCount.value); let curveAmt = parseFloat(curveAmountInput.value);
+            let erosionAmt = parseFloat(erosionAmountInput.value); let background = bgColor.value; let color = lineColor.value;
+            let width = parseFloat(lineWidth.value); let scale = parseFloat(scaleValue.value); 
+            let mirror = mirrorSymmetry.checked; let rotation = parseInt(globalRotation.value); let offX = parseInt(offsetInputX.value);
+            let offY = parseInt(offsetInputY.value); let dashStyle = lineStyle.value; let htSize = parseFloat(halftoneSize.value);
+            let htFalloff = parseFloat(halftoneFalloff.value); let fPhase = parseFloat(flowPhase.value) / 100.0;
+            let wType = waveType.value; let wAmp = parseFloat(waveAmp.value); let wFreq = parseFloat(waveFreq.value); let wPhase = parseFloat(wavePhase.value);
+            
+            dynProps.fadeAmt = parseFloat(opacityFade.value); dynProps.hColor = highlightColor.value;
+            dynProps.hInten = parseFloat(highlightIntensity.value); dynProps.anchor = colorAnchor.value; dynProps.gradCounter = 0; 
+            
+            let tFrames = parseInt(trailFrames.value); let tSpacing = parseFloat(trailSpacing.value);
+            let baseWSpeed = parseFloat(animSpeed.value); let baseFSpeed = parseFloat(flowSpeed.value);
+            let hasMotion = (baseWSpeed !== 0 && wType !== 'none') || (baseFSpeed !== 0 && dashStyle !== 'solid');
+            let effectiveTrailFrames = hasMotion ? tFrames : 0;
+
+            exportSvg.style.backgroundColor = background;
+            let bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0'); bgRect.setAttribute('width', '500'); bgRect.setAttribute('height', '500'); bgRect.setAttribute('fill', background);
+            exportSvg.appendChild(bgRect);
+
+            let gradDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            gradDefs.setAttribute('id', 'grad-defs-export');
+            exportSvg.appendChild(gradDefs);
+            dynProps.gradDefs = gradDefs;
+
+            let defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            let baseLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            baseLayer.setAttribute('id', 'base-layer-export');
+            defs.appendChild(baseLayer); exportSvg.appendChild(defs);
+
+            let mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            mainGroup.setAttribute('transform', `rotate(${rotation}, 250, 250)`);
+            exportSvg.appendChild(mainGroup);
+
+            let cx = 250 + offX; let cy = 250 + offY; let r = 230 * scale; 
+
+            for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
+                let offsetMultiplier = trail * tSpacing;
+                let frameWPhase = wPhase;
+                if (baseWSpeed !== 0 && wType !== 'none') frameWPhase = (((wPhase - (baseWSpeed * offsetMultiplier)) % 360) + 360) % 360;
+                let frameFPhase = fPhase;
+                if (baseFSpeed !== 0 && dashStyle !== 'solid') frameFPhase = (((fPhase - (baseFSpeed * offsetMultiplier / 100.0)) % 1.0) + 1.0) % 1.0;
+                
+                let trailOpacity = (effectiveTrailFrames === 0) ? 1.0 : 1.0 - Math.pow(trail / effectiveTrailFrames, 1.2);
+                if (trailOpacity <= 0.01 && trail > 0) continue;
+
+                let group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                baseLayer.appendChild(group);
+                buildGeometry(false, group, style, steps, cx, cy, r, curveAmt, color, width, dashStyle, erosionAmt, htSize, htFalloff, wType, wAmp, wFreq, frameWPhase, frameFPhase, trailOpacity, scale);
+            }
+
+            let lMode = layoutMode.value;
+            let iterations = 1;
+            if (lMode === 'radial') iterations = parseInt(symmetryCount.value);
+            else if (lMode === 'spiral') iterations = parseInt(spiralSteps.value);
+            else if (lMode === 'linear') iterations = parseInt(linearCopies.value);
+            
+            let sTwist = parseFloat(spiralTwist.value);
+            let sShrink = parseFloat(spiralShrink.value);
+            let lX = parseFloat(linearX.value);
+            let lY = parseFloat(linearY.value);
+
+            for (let i = 0; i < iterations; i++) {
+                let clone = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+                clone.setAttribute('href', '#base-layer-export'); 
+                clone.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#base-layer-export');
+                
+                let transformStr = "";
+                if (lMode === 'radial') {
+                    let angle = i * (360 / iterations);
+                    transformStr = `rotate(${angle}, 250, 250)`;
+                } else if (lMode === 'spiral') {
+                    let angle = i * sTwist;
+                    let s = Math.pow(sShrink, i);
+                    transformStr = `translate(250, 250) rotate(${angle}) scale(${s}) translate(-250, -250)`;
+                } else if (lMode === 'linear') {
+                    let startOffX = -((iterations - 1) * lX) / 2;
+                    let startOffY = -((iterations - 1) * lY) / 2;
+                    transformStr = `translate(${startOffX + i * lX}, ${startOffY + i * lY})`;
+                }
+                
+                clone.setAttribute('transform', transformStr);
+                mainGroup.appendChild(clone);
+                
+                if (mirror) {
                     let mirClone = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-                    mirClone.setAttribute('href', '#base-layer');
-                    mirClone.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#base-layer');
-                    mirClone.setAttribute('transform', `rotate(${angle}, 250, 250) translate(500, 0) scale(-1, 1)`);
+                    mirClone.setAttribute('href', '#base-layer-export'); 
+                    mirClone.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#base-layer-export');
+                    mirClone.setAttribute('transform', `${transformStr} translate(500, 0) scale(-1, 1)`);
                     mainGroup.appendChild(mirClone);
                 }
             }
-        }
-
-        document.getElementById('exportBtn').addEventListener('click', function() {
+            
             const serializer = new XMLSerializer();
-            let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(svg);
+            let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(exportSvg);
             const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml;charset=utf-8" }));
             const a = document.createElement("a");
-            a.href = url;
-            a.download = "geometrica_pattern.svg";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        });
+            a.href = url; a.download = "geometrica_pattern.svg";
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+        document.getElementById('exportBtn').addEventListener('click', generateExportSVG);
 
-        // --- EVENT LISTENERS ---
-        stateControls.forEach(function(id) {
-            document.getElementById(id).addEventListener('input', function() {
-                updateDisplays();
-                draw();
+        async function exportVideo() {
+            if (isRecording) return;
+            isRecording = true; exportVidBtn.disabled = true;
+            
+            let wSpeed = Math.abs(parseFloat(animSpeed.value)); let fSpeed = Math.abs(parseFloat(flowSpeed.value));
+            let isWaveActive = (wSpeed > 0 && waveType.value !== 'none');
+            let isFlowActive = (fSpeed > 0 && lineStyle.value !== 'solid');
+            
+            let totalFrames = 300; let actualWSpeed = 0; let actualFSpeed = 0;
+            if (isWaveActive && isFlowActive) {
+                let wFrames = 360 / wSpeed; let fFrames = 100 / fSpeed;
+                if (wFrames > fFrames) {
+                    totalFrames = Math.round(wFrames); let cycles = Math.round(totalFrames / fFrames) || 1;
+                    actualWSpeed = 360 / totalFrames; actualFSpeed = (100 * cycles) / totalFrames;
+                } else {
+                    totalFrames = Math.round(fFrames); let cycles = Math.round(totalFrames / wFrames) || 1;
+                    actualFSpeed = 100 / totalFrames; actualWSpeed = (360 * cycles) / totalFrames;
+                }
+            } else if (isWaveActive) { totalFrames = Math.round(360 / wSpeed); actualWSpeed = 360 / totalFrames; }
+            else if (isFlowActive) { totalFrames = Math.round(100 / fSpeed); actualFSpeed = 100 / totalFrames; }
+            if (parseFloat(animSpeed.value) < 0) actualWSpeed *= -1;
+            if (parseFloat(flowSpeed.value) < 0) actualFSpeed *= -1;
+
+            let startWPhase = parseFloat(wavePhase.value); let startFPhase = parseFloat(flowPhase.value);
+            let currentFrame = 0; let framesEncoded = 0;
+            
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = 1080; exportCanvas.height = 1080;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            function finishExport() {
+                isRecording = false; exportVidBtn.disabled = false;
+                exportVidBtn.innerText = "Export Looping Video (1080p)";
+                if (isAnimating) animationLoop(); 
+            }
+
+            try {
+                exportVidBtn.innerText = "Initializing 1080p Encoder...";
+                let muxer = new Mp4Muxer.Muxer({
+                    target: new Mp4Muxer.ArrayBufferTarget(),
+                    video: { codec: 'avc', width: 1080, height: 1080 },
+                    fastStart: 'in-memory'
+                });
+
+                let videoEncoder = new VideoEncoder({
+                    output: (chunk, meta) => { framesEncoded++; muxer.addVideoChunk(chunk, meta); },
+                    error: e => { console.error("VideoEncoder crashed:", e); finishExport(); }
+                });
+                
+                videoEncoder.configure({
+                    codec: 'avc1.4d002a', width: 1080, height: 1080,
+                    bitrate: 20000000, framerate: 60, hardwareAcceleration: "no-preference"
+                });
+
+                function renderOfflineFrame() {
+                    if (currentFrame >= totalFrames) {
+                        exportVidBtn.innerText = "Finalizing Video...";
+                        videoEncoder.flush().then(() => {
+                            muxer.finalize();
+                            let blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+                            let a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `geometrica_1080p_60fps.mp4`;
+                            a.click();
+                            finishExport();
+                        });
+                        return;
+                    }
+                    
+                    let curW = isWaveActive ? (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360 : startWPhase;
+                    let curF = isFlowActive ? ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100)/100 : startFPhase/100;
+                    
+                    drawLiveCanvas(curW, curF, exportCtx, 1080);
+                    
+                    let frame = new VideoFrame(exportCanvas, { 
+                        timestamp: Math.round((currentFrame * 1000000) / 60),
+                        duration: Math.round(1000000 / 60)
+                    });
+                    videoEncoder.encode(frame, { keyFrame: currentFrame % 60 === 0 });
+                    frame.close();
+
+                    exportVidBtn.innerText = `Rendering 1080p... ${Math.round((currentFrame / totalFrames) * 100)}%`;
+                    currentFrame++;
+                    requestAnimationFrame(renderOfflineFrame);
+                }
+                renderOfflineFrame();
+            } catch(e) { alert("Encoding failed. Browser missing WebCodecs."); finishExport(); }
+        }
+        exportVidBtn.addEventListener('click', exportVideo);
+
+        async function exportWebM() {
+            if (isRecording) return;
+            isRecording = true; 
+            const webmBtn = document.getElementById('exportWebmBtn');
+            webmBtn.disabled = true;
+
+            let wSpeed = Math.abs(parseFloat(animSpeed.value)); let fSpeed = Math.abs(parseFloat(flowSpeed.value));
+            let isWaveActive = (wSpeed > 0 && waveType.value !== 'none');
+            let isFlowActive = (fSpeed > 0 && lineStyle.value !== 'solid');
+            
+            let totalFrames = 300; let actualWSpeed = 0; let actualFSpeed = 0;
+
+            if (isWaveActive && isFlowActive) {
+                let wFrames = 360 / wSpeed; let fFrames = 100 / fSpeed;
+                if (wFrames > fFrames) {
+                    totalFrames = Math.round(wFrames); let cycles = Math.round(totalFrames / fFrames) || 1;
+                    actualWSpeed = 360 / totalFrames; actualFSpeed = (100 * cycles) / totalFrames;
+                } else {
+                    totalFrames = Math.round(fFrames); let cycles = Math.round(totalFrames / wFrames) || 1;
+                    actualFSpeed = 100 / totalFrames; actualWSpeed = (360 * cycles) / totalFrames;
+                }
+            } else if (isWaveActive) { totalFrames = Math.round(360 / wSpeed); actualWSpeed = 360 / totalFrames; }
+            else if (isFlowActive) { totalFrames = Math.round(100 / fSpeed); actualFSpeed = 100 / totalFrames; }
+            if (parseFloat(animSpeed.value) < 0) actualWSpeed *= -1;
+            if (parseFloat(flowSpeed.value) < 0) actualFSpeed *= -1;
+
+            let startWPhase = parseFloat(wavePhase.value); let startFPhase = parseFloat(flowPhase.value);
+            let currentFrame = 0; let framesEncoded = 0;
+
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = 800; exportCanvas.height = 800;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            function finishExport() {
+                isRecording = false; webmBtn.disabled = false;
+                webmBtn.innerText = "Export Looping WebM";
+                if (isAnimating) animationLoop(); 
+            }
+
+            try {
+                webmBtn.innerText = "Initializing VP8 Encoder...";
+                let muxer = new WebMMuxer.Muxer({
+                    target: new WebMMuxer.ArrayBufferTarget(),
+                    video: { codec: 'V_VP8', width: 800, height: 800 }
+                });
+
+                let videoEncoder = new VideoEncoder({
+                    output: (chunk, meta) => { framesEncoded++; muxer.addVideoChunk(chunk, meta); },
+                    error: e => { 
+                        alert("Hardware Encoder Failed: " + e.message); 
+                        finishExport(); 
+                    }
+                });
+                
+                videoEncoder.configure({
+                    codec: 'vp8', 
+                    width: 800, height: 800,
+                    bitrate: 10000000, 
+                    framerate: 50
+                });
+
+                function renderOfflineFrame() {
+                    if (currentFrame >= totalFrames) {
+                        webmBtn.innerText = "Finalizing WebM...";
+                        videoEncoder.flush().then(() => {
+                            muxer.finalize();
+                            let blob = new Blob([muxer.target.buffer], { type: 'video/webm' });
+                            let a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `geometrica_truecolor_loop.webm`;
+                            a.click();
+                            finishExport();
+                        });
+                        return;
+                    }
+
+                    let curW = isWaveActive ? (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360 : startWPhase;
+                    let curF = isFlowActive ? ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100)/100 : startFPhase/100;
+                    
+                    drawLiveCanvas(curW, curF, exportCtx, 800);
+
+                    let frame = new VideoFrame(exportCanvas, { 
+                        timestamp: Math.round((currentFrame * 1000000) / 50),
+                        duration: Math.round(1000000 / 50)
+                    });
+                    
+                    videoEncoder.encode(frame, { keyFrame: currentFrame % 50 === 0 });
+                    frame.close();
+
+                    webmBtn.innerText = `Rendering WebM... ${Math.round((currentFrame / totalFrames) * 100)}%`;
+                    currentFrame++;
+                    requestAnimationFrame(renderOfflineFrame);
+                }
+                renderOfflineFrame();
+            } catch(e) { 
+                alert("Encoding failed: " + e.message); 
+                finishExport(); 
+            }
+        }
+        
+        document.getElementById('exportWebmBtn').addEventListener('click', exportWebM);
+
+        async function exportGif() {
+            if (isRecording) return;
+            isRecording = true; exportGifBtn.disabled = true;
+
+            let wSpeed = Math.abs(parseFloat(animSpeed.value)); let fSpeed = Math.abs(parseFloat(flowSpeed.value));
+            let isWaveActive = (wSpeed > 0 && waveType.value !== 'none');
+            let isFlowActive = (fSpeed > 0 && lineStyle.value !== 'solid');
+            let totalFrames = 300; let actualWSpeed = 0; let actualFSpeed = 0;
+
+            if (isWaveActive && isFlowActive) {
+                let wFrames = 360 / wSpeed; let fFrames = 100 / fSpeed;
+                if (wFrames > fFrames) {
+                    totalFrames = Math.round(wFrames); let cycles = Math.round(totalFrames / fFrames) || 1;
+                    actualWSpeed = 360 / totalFrames; actualFSpeed = (100 * cycles) / totalFrames;
+                } else {
+                    totalFrames = Math.round(fFrames); let cycles = Math.round(totalFrames / wFrames) || 1;
+                    actualFSpeed = 100 / totalFrames; actualWSpeed = (360 * cycles) / totalFrames;
+                }
+            } else if (isWaveActive) { totalFrames = Math.round(360 / wSpeed); actualWSpeed = 360 / totalFrames; }
+            else if (isFlowActive) { totalFrames = Math.round(100 / fSpeed); actualFSpeed = 100 / totalFrames; }
+            if (parseFloat(animSpeed.value) < 0) actualWSpeed *= -1;
+            if (parseFloat(flowSpeed.value) < 0) actualFSpeed *= -1;
+
+            let startWPhase = parseFloat(wavePhase.value); let startFPhase = parseFloat(flowPhase.value);
+            let currentFrame = 0;
+
+            let gif = new GIF({
+                workers: 4, quality: 1, dither: 'FloydSteinberg', width: 800, height: 800,
+                workerScript: URL.createObjectURL(new Blob(["importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');"], { type: 'text/javascript' }))
             });
-        });
 
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = 800; exportCanvas.height = 800;
+            const exportCtx = exportCanvas.getContext('2d');
+
+            function renderGifFrame() {
+                if (currentFrame >= totalFrames) {
+                    exportGifBtn.innerText = "Encoding GIF... (Please wait)";
+                    gif.render();
+                    return;
+                }
+
+                let curW = isWaveActive ? (((startWPhase + (currentFrame * actualWSpeed)) % 360) + 360) % 360 : startWPhase;
+                let curF = isFlowActive ? ((((startFPhase + (currentFrame * actualFSpeed)) % 100) + 100) % 100)/100 : startFPhase/100;
+                
+                drawLiveCanvas(curW, curF, exportCtx, 800);
+
+                gif.addFrame(exportCanvas, { delay: 20, copy: true });
+                exportGifBtn.innerText = `Capturing Frames... ${Math.round((currentFrame / totalFrames) * 100)}%`;
+                currentFrame++;
+                requestAnimationFrame(renderGifFrame);
+            }
+
+            gif.on('finished', function(blob) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob); a.download = 'geometrica_loop_50fps.gif';
+                a.click();
+                isRecording = false; exportGifBtn.disabled = false;
+                exportGifBtn.innerText = "Export Looping GIF (50FPS)";
+                if (isAnimating) animationLoop(); 
+            });
+
+            exportGifBtn.innerText = "Initializing GIF Engine...";
+            renderGifFrame();
+        }
+        document.getElementById('exportGifBtn').addEventListener('click', exportGif);
+
+        function updatePresetDropdown() {
+            presetSelect.innerHTML = '<option value="">-- Select a Saved Preset --</option>';
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (key.startsWith('geo_preset_')) {
+                    let name = key.replace('geo_preset_', '');
+                    let opt = document.createElement('option');
+                    opt.value = name; opt.textContent = name;
+                    presetSelect.appendChild(opt);
+                }
+            }
+        }
+        function savePreset() {
+            let name = presetNameInput.value.trim();
+            if (!name) {
+                let oldPlaceholder = presetNameInput.placeholder;
+                presetNameInput.placeholder = "Please type a name!";
+                setTimeout(() => presetNameInput.placeholder = oldPlaceholder, 2000);
+                return;
+            }
+            let preset = {};
+            stateControls.forEach(id => {
+                let el = document.getElementById(id);
+                preset[id] = (el.type === 'checkbox') ? el.checked : el.value;
+            });
+            localStorage.setItem('geo_preset_' + name, JSON.stringify(preset));
+            updatePresetDropdown(); presetSelect.value = name; presetNameInput.value = ""; 
+        }
+        function loadPreset() {
+            let name = presetSelect.value;
+            if (!name) return;
+            let data = localStorage.getItem('geo_preset_' + name);
+            if (data) {
+                let preset = JSON.parse(data);
+                stateControls.forEach(id => {
+                    if (preset[id] !== undefined) {
+                        let el = document.getElementById(id);
+                        if (el.type === 'checkbox') el.checked = preset[id]; else el.value = preset[id];
+                    }
+                });
+                updateDisplays(); drawLiveCanvas();
+                isAnimating = document.getElementById('animatePhase').checked;
+                if(isAnimating) animationLoop();
+            }
+        }
+        function deletePreset() {
+            let name = presetSelect.value;
+            if (!name) return;
+            localStorage.removeItem('geo_preset_' + name);
+            updatePresetDropdown(); presetSelect.value = "";
+            let originalText = document.getElementById('deletePresetBtn').textContent;
+            document.getElementById('deletePresetBtn').textContent = "Deleted!";
+            document.getElementById('deletePresetBtn').style.backgroundColor = "#6c757d"; 
+            setTimeout(() => {
+                document.getElementById('deletePresetBtn').textContent = originalText;
+                document.getElementById('deletePresetBtn').style.backgroundColor = ""; 
+            }, 1500);
+        }
+        
         document.getElementById('loadPresetBtn').addEventListener('click', loadPreset);
         document.getElementById('savePresetBtn').addEventListener('click', savePreset);
         document.getElementById('deletePresetBtn').addEventListener('click', deletePreset);
-
-        // --- INITIALIZATION ---
         updatePresetDropdown();
+
+        stateControls.forEach(id => {
+            document.getElementById(id).addEventListener('input', () => { updateDisplays(); if(!isAnimating) drawLiveCanvas(); });
+        });
+        
+        function updateDisplays() {
+            document.getElementById('linesVal').innerText = linesCount.value;
+            document.getElementById('curveVal').innerText = parseFloat(curveAmountInput.value).toFixed(1);
+            document.getElementById('erosionVal').innerText = parseFloat(erosionAmountInput.value).toFixed(2);
+            document.getElementById('wAmpVal').innerText = waveAmp.value;
+            document.getElementById('wFreqVal').innerText = waveFreq.value;
+            document.getElementById('wPhaseVal').innerText = parseFloat(wavePhase.value).toFixed(1);
+            document.getElementById('animSpeedVal').innerText = parseFloat(animSpeed.value).toFixed(1);
+            document.getElementById('angleVal').innerText = angleCount.value;
+            document.getElementById('axesVal').innerText = multiAxesCount.value;
+            document.getElementById('polygonVal').innerText = polygonSides.value;
+            document.getElementById('circleStepVal').innerText = circleStep.value;
+            document.getElementById('ellipseRatioVal').innerText = parseFloat(ellipseRatio.value).toFixed(2);
+            
+            document.getElementById('symVal').innerText = symmetryCount.value + 'x';
+            document.getElementById('spiralStepsVal').innerText = spiralSteps.value;
+            document.getElementById('spiralTwistVal').innerText = parseFloat(spiralTwist.value).toFixed(1) + '°';
+            document.getElementById('spiralShrinkVal').innerText = parseFloat(spiralShrink.value).toFixed(2);
+            document.getElementById('linearCopiesVal').innerText = linearCopies.value;
+            document.getElementById('linearXVal').innerText = linearX.value + 'px';
+            document.getElementById('linearYVal').innerText = linearY.value + 'px';
+
+            document.getElementById('rotVal').innerText = globalRotation.value;
+            document.getElementById('offsetXVal').innerText = offsetInputX.value;
+            document.getElementById('offsetYVal').innerText = offsetInputY.value;
+            document.getElementById('zoomVal').innerText = parseFloat(zoomValue.value).toFixed(1) + 'x';
+            document.getElementById('scaleVal').innerText = parseFloat(scaleValue.value).toFixed(2);
+            document.getElementById('htSizeVal').innerText = parseFloat(halftoneSize.value).toFixed(1);
+            document.getElementById('htFalloffVal').innerText = parseFloat(halftoneFalloff.value).toFixed(2);
+            document.getElementById('fPhaseVal').innerText = parseFloat(flowPhase.value).toFixed(1);
+            document.getElementById('fSpeedVal').innerText = parseFloat(flowSpeed.value).toFixed(2);
+            document.getElementById('fadeVal').innerText = parseFloat(opacityFade.value).toFixed(2);
+            document.getElementById('hIntenVal').innerText = parseFloat(highlightIntensity.value).toFixed(2);
+            document.getElementById('widthVal').innerText = parseFloat(lineWidth.value).toFixed(1);
+            document.getElementById('trailFramesVal').innerText = trailFrames.value;
+            document.getElementById('trailSpacingVal').innerText = parseFloat(trailSpacing.value).toFixed(1);
+
+            let style = styleSelect.value;
+            let dashStyle = lineStyle.value;
+            let wType = waveType.value;
+            let lMode = layoutMode.value;
+
+            document.getElementById('angleControl').style.display = (style === 'v_shape') ? 'block' : 'none';
+            document.getElementById('axesControl').style.display = (style === 'multi_axis') ? 'block' : 'none';
+            document.getElementById('polygonControl').style.display = (style === 'polygon_ring') ? 'block' : 'none';
+            document.getElementById('circleStepControl').style.display = (style === 'circle_string' || style === 'ellipse_string' || style === 'circle_to_circle') ? 'block' : 'none';
+            document.getElementById('ellipseRatioControl').style.display = (style === 'ellipse_string') ? 'block' : 'none';
+            
+            document.getElementById('flowControls').style.display = (dashStyle !== 'solid') ? 'block' : 'none';
+            document.getElementById('halftoneSizeControl').style.display = (dashStyle === 'halftone') ? 'block' : 'none';
+            document.getElementById('halftoneFalloffControl').style.display = (dashStyle === 'halftone') ? 'block' : 'none';
+            document.getElementById('halftoneAnchorControl').style.display = (dashStyle === 'halftone') ? 'block' : 'none';
+            
+            document.getElementById('waveParamsControl').style.display = (wType !== 'none') ? 'block' : 'none';
+
+            document.getElementById('radialControls').style.display = (lMode === 'radial') ? 'block' : 'none';
+            document.getElementById('spiralControls').style.display = (lMode === 'spiral') ? 'block' : 'none';
+            document.getElementById('linearControls').style.display = (lMode === 'linear') ? 'block' : 'none';
+        }
+        
         updateDisplays();
-        draw();
+        drawLiveCanvas();
+
     </script>
 </body>
 </html>
