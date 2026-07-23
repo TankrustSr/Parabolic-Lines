@@ -279,7 +279,67 @@
             <label for="ellipseRatio">Ellipse Aspect Ratio <span id="ellipseRatioVal" class="value-display">0.6</span></label>
             <input type="range" id="ellipseRatio" min="0.1" max="2.0" step="0.05" value="0.6">
         </div>
-
+		<h3>Watch Dial Layer</h3>
+        <div class="control-group">
+            <label for="dialMarkers">Hour Markers</label>
+            <select id="dialMarkers">
+                <option value="none">Disabled</option>
+                <option value="all">All (1 - 12)</option>
+                <option value="quarters">Quarters (12, 3, 6, 9)</option>
+                <option value="evens">Evens (2, 4, 6, 8, 10, 12)</option>
+                <option value="odds">Odds (1, 3, 5, 7, 9, 11)</option>
+				<option value="silly">Silly (1, 4, 7, 10)</option>
+                <option value="twelve">12 Only</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="dialRadius">Distance from Center <span id="dialRadiusVal" class="value-display">200</span></label>
+            <input type="range" id="dialRadius" min="0" max="300" value="200">
+        </div>
+        <div class="control-group">
+            <label for="dialSize">Number Size <span id="dialSizeVal" class="value-display">20</span></label>
+            <input type="range" id="dialSize" min="5" max="80" value="20">
+        </div>
+		<div class="control-group">
+            <label for="dialWaveAmp">Number Wave Mod (Scale) <span id="dialWaveVal" class="value-display">0.20</span></label>
+            <input type="range" id="dialWaveAmp" min="0" max="0.1" step="0.001" value="0.0">
+        </div>
+		<div class="control-group">
+            <label for="dialWaveFreq">Number Wave Freq (Scale) <span id="dialFreqVal" class="value-display">0.50</span></label>
+            <input type="range" id="dialWaveFreq" min="0.05" max="2.0" step="0.05" value="0.50">
+        </div>
+		<div class="control-group">
+            <label for="dialDrafting">Architectural Sketch Effect <span id="dialDraftingVal" class="value-display">0.0</span></label>
+            <input type="range" id="dialDrafting" min="0" max="1.0" step="0.05" value="0.0">
+        </div>
+		<div class="control-group">
+            <label for="dialOvershoot">Number Overshoot <span id="dialOvershootVal" class="value-display">0.25</span></label>
+            <input type="range" id="dialOvershoot" min="0" max="1.5" step="0.05" value="0.25">
+        </div>
+        <div class="control-group">
+            <label for="dialDrift">Number Lateral Drift <span id="dialDriftVal" class="value-display">0.12</span></label>
+            <input type="range" id="dialDrift" min="0" max="0.5" step="0.02" value="0.12">
+        </div>
+		<div class="control-group">
+            <label for="dialChapter">Chapter Ring Marks</label>
+            <select id="dialChapter">
+                <option value="none">Disabled</option>
+                <option value="12">12 Marks (Hours)</option>
+                <option value="60">60 Marks (Minutes)</option>
+                <option value="300">300 Marks (1/5th Seconds)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="chapterRadius">Chapter Radius <span id="chapterRadiusVal" class="value-display">220</span></label>
+            <input type="range" id="chapterRadius" min="0" max="300" value="220">
+        </div>
+        <div class="control-group">
+            <label for="chapterSize">Chapter Tick Length <span id="chapterSizeVal" class="value-display">10</span></label>
+            <input type="range" id="chapterSize" min="2" max="50" value="10">
+        </div>
+		<label class="checkbox-group" for="dialIsolate" style="margin-top: 8px;">
+            <input type="checkbox" id="dialIsolate" checked> Isolate from Symmetry & Layout
+        </label>
         <h3>Aesthetics & Styles</h3>
         <div class="control-group">
             <label for="lineStyle">Line Dash Style</label>
@@ -425,7 +485,19 @@
         const canvas = document.getElementById('drawingCanvas');
         const ctx = canvas.getContext('2d');
         const exportSvg = document.getElementById('exportSvg');
-        
+		const dialMarkers = document.getElementById('dialMarkers');
+        const dialRadius = document.getElementById('dialRadius');
+        const dialSize = document.getElementById('dialSize');
+		const dialWaveAmp = document.getElementById('dialWaveAmp'); 
+		const dialWaveFreq = document.getElementById('dialWaveFreq');
+        const dialIsolate = document.getElementById('dialIsolate');
+		const dialDrafting = document.getElementById('dialDrafting');
+		const dialOvershoot = document.getElementById('dialOvershoot'); 
+        const dialDrift = document.getElementById('dialDrift');
+		const dialChapter = document.getElementById('dialChapter'); 
+        const chapterRadius = document.getElementById('chapterRadius');
+        const chapterSize = document.getElementById('chapterSize');
+		
         let isCanvasInitialized = false;
 
         function resizeCanvas() {
@@ -505,7 +577,8 @@
             'mirrorSymmetry', 'globalRotation', 'offsetX', 'offsetY', 
             'zoomValue', 'scaleValue', 'lineStyle', 'halftoneSize', 'halftoneFalloff', 'colorAnchor', 'flowPhase', 'flowSpeed',
             'opacityFade', 'highlightColor', 'highlightIntensity', 'trailFrames', 'trailSpacing',
-            'bgColor', 'lineColor', 'lineWidth', 'animatePhase'
+            'bgColor', 'lineColor', 'lineWidth', 'animatePhase',
+			'dialMarkers', 'dialRadius', 'dialSize', 'dialWaveAmp', 'dialWaveFreq', 'dialIsolate', 'dialDrafting', 'dialChapter', 'chapterRadius', 'chapterSize', 'dialOvershoot', 'dialDrift' // <-- Added Dial Controls
         ];
 
         let dynProps = {};
@@ -974,7 +1047,206 @@
                 }
             }
         }
+		// Procedural point map for architectural sketch-style numbers
+        // A: Top-Left, B: Top-Center, C: Top-Right, D: Mid-Left, E: Mid-Center, etc.
+        const pt = { A:[0,0], B:[0.5,0], C:[1,0], D:[0,0.5], E:[0.5,0.5], F:[1,0.5], G:[0,1], H:[0.5,1], I:[1,1] };
+        
+        // High-resolution fractional vector map for elegant, architectural numbering
+        const numStrokes = {
+            '0': [ 
+                [[0.3, 0], [0.7, 0]], [[0.7, 0], [0.9, 0.2]], [[0.9, 0.2], [0.9, 0.8]], 
+                [[0.9, 0.8], [0.7, 1]], [[0.7, 1], [0.3, 1]], [[0.3, 1], [0.1, 0.8]], 
+                [[0.1, 0.8], [0.1, 0.2]], [[0.1, 0.2], [0.3, 0]] 
+            ],
+            '1': [ [[0.2, 0.15], [0.5, 0]], [[0.5, 0], [0.5, 1]], [[0.2, 1], [0.8, 1]] ],
+            '2': [ 
+                [[0.1, 0.25], [0.25, 0]], [[0.25, 0], [0.75, 0]], [[0.75, 0], [0.9, 0.25]], 
+                [[0.9, 0.25], [0.9, 0.4]], [[0.9, 0.4], [0.1, 1]], [[0.1, 1], [1, 1]] 
+            ],
+            '3': [ 
+                [[0.1, 0.15], [0.3, 0]], [[0.3, 0], [0.75, 0]], [[0.75, 0], [0.95, 0.2]], 
+                [[0.95, 0.2], [0.65, 0.45]], [[0.65, 0.45], [0.95, 0.7]], [[0.95, 0.7], [0.75, 1]], 
+                [[0.75, 1], [0.2, 1]], [[0.2, 1], [0, 0.8]] 
+            ],
+            '4': [ [[0.7, 1], [0.7, 0]], [[0.7, 0], [0, 0.7]], [[0, 0.7], [1, 0.7]] ],
+            '5': [ 
+                [[0.9, 0], [0.2, 0]], [[0.2, 0], [0.2, 0.45]], [[0.2, 0.45], [0.7, 0.45]], 
+                [[0.7, 0.45], [0.95, 0.65]], [[0.95, 0.65], [0.7, 1]], [[0.7, 1], [0.1, 1]] 
+            ],
+            '6': [ 
+                [[0.9, 0], [0.4, 0]], [[0.4, 0], [0.1, 0.3]], [[0.1, 0.3], [0.1, 0.7]], 
+                [[0.1, 0.7], [0.4, 1]], [[0.4, 1], [0.75, 1]], [[0.75, 1], [0.95, 0.75]], 
+                [[0.95, 0.75], [0.75, 0.5]], [[0.75, 0.5], [0.1, 0.5]] 
+            ],
+            '7': [ [[0.05, 0], [0.95, 0]], [[0.95, 0], [0.3, 1]] ],
+            '8': [ 
+                [[0.3, 0], [0.7, 0]], [[0.7, 0], [0.85, 0.15]], [[0.85, 0.15], [0.7, 0.45]], 
+                [[0.7, 0.45], [0.3, 0.45]], [[0.3, 0.45], [0.15, 0.15]], [[0.15, 0.15], [0.3, 0]],
+                [[0.3, 0.45], [0.7, 0.45]], [[0.7, 0.45], [0.95, 0.75]], [[0.95, 0.75], [0.7, 1]], 
+                [[0.7, 1], [0.3, 1]], [[0.3, 1], [0.05, 0.75]], [[0.05, 0.75], [0.3, 0.45]] 
+            ],
+            '9': [ 
+                [[0.9, 0.5], [0.25, 0.5]], [[0.25, 0.5], [0.05, 0.25]], [[0.05, 0.25], [0.25, 0]], 
+                [[0.25, 0], [0.6, 0]], [[0.6, 0], [0.9, 0.3]], [[0.9, 0.3], [0.9, 0.7]], 
+                [[0.9, 0.7], [0.6, 1]], [[0.6, 1], [0.1, 1]] 
+            ]
+        };
 
+        function drawDialLayer(isCanvasTarget, targetLayer, cx, cy, trailOpacity, frameWPhase, frameFPhase, params) {
+            if (params.dialMarkers === 'none') return;
+            
+            let hours = [];
+            if (params.dialMarkers === 'all') hours = [1,2,3,4,5,6,7,8,9,10,11,12];
+            if (params.dialMarkers === 'quarters') hours = [12,3,6,9];
+            if (params.dialMarkers === 'evens') hours = [2,4,6,8,10,12];
+            if (params.dialMarkers === 'odds') hours = [1,3,5,7,9,11];
+			if (params.dialMarkers === 'silly') hours = [1,4,7,10];
+            if (params.dialMarkers === 'twelve') hours = [12];
+
+            hours.forEach(hour => {
+                // Clock geometry: 12 is at the top (-90 degrees)
+                let angle = (hour / 12) * Math.PI * 2 - (Math.PI / 2);
+                let hx = cx + params.dialRadius * Math.cos(angle);
+                let hy = cy + params.dialRadius * Math.sin(angle);
+                
+                let hourStr = hour.toString();
+                let numDigits = hourStr.length;
+                let spacing = params.dialSize * 0.8;
+                
+                for (let d = 0; d < numDigits; d++) {
+                    let char = hourStr[d];
+                    let strokes = numStrokes[char];
+                    if (!strokes) continue;
+
+                    // Center offset calculations for multi-digit hours
+                    let offsetX = hx - (params.dialSize / 2);
+                    if (numDigits === 2) {
+                        offsetX += (d === 0) ? -(spacing / 2) : (spacing / 2);
+                    }
+                    let offsetY = hy - (params.dialSize / 2);
+
+                    strokes.forEach((stroke, i) => {
+                        let [p1, p2] = stroke;
+                        
+                        let base_x1 = offsetX + p1[0] * params.dialSize;
+                        let base_y1 = offsetY + p1[1] * params.dialSize;
+                        let base_x2 = offsetX + p2[0] * params.dialSize;
+                        let base_y2 = offsetY + p2[1] * params.dialSize;
+
+                        let draftingIntensity = params.dialDrafting;
+                        // Draw 3 passes if sketching is on, otherwise 1
+                        let passes = draftingIntensity > 0 ? 3 : 1; 
+
+                        for (let pass = 0; pass < passes; pass++) {
+                            let x1 = base_x1; let y1 = base_y1;
+                            let x2 = base_x2; let y2 = base_y2;
+
+                            if (draftingIntensity > 0) {
+                                // Seeded random ensures sketch lines are static during animation frames
+                                let seed = hour * 100 + d * 10 + i * passes + pass;
+                                let rand1 = Math.abs(Math.sin(seed++) * 10000) % 1;
+                                let rand2 = Math.abs(Math.sin(seed++) * 10000) % 1;
+                                let rand3 = Math.abs(Math.sin(seed++) * 10000) % 1;
+
+                                let dx = x2 - x1;
+                                let dy = y2 - y1;
+                                
+                                // 1. Overshoot the ends (creates the intersecting cross-hairs)
+                                let overshoot = 0.05 * draftingIntensity + (rand1 * params.dialOvershoot * draftingIntensity);
+                                x1 = x1 - (dx * overshoot);
+                                y1 = y1 - (dy * overshoot);
+                                x2 = x2 + (dx * overshoot);
+                                y2 = y2 + (dy * overshoot);
+
+                                // 2. Add lateral drift to passes 2 and 3 so they look like multiple pencil strokes
+                                if (pass > 0) {
+                                    let driftX = (rand2 - 0.5) * params.dialSize * params.dialDrift * draftingIntensity;
+                                    let driftY = (rand3 - 0.5) * params.dialSize * params.dialDrift * draftingIntensity;
+                                    x1 += driftX; y1 += driftY;
+                                    x2 += driftX; y2 += driftY;
+                                }
+                            }
+
+                            let charCurve = params.curveAmt * 0.3;
+                            let charWaveAmp = params.wAmp * params.dialWaveAmp;
+							let charWaveFreq = params.wFreq * params.dialWaveFreq;
+
+                            processCurve(
+                                x1, y1, x2, y2, 
+                                params.color, params.width, charCurve, params.dashStyle, params.erosionAmt, 
+                                i, strokes.length, params.htSize, params.htFalloff, frameFPhase, 
+                                hx, hy, params.dialSize * 1.5, params.wType, charWaveAmp, charWaveFreq, frameWPhase, 
+                                isCanvasTarget, targetLayer, trailOpacity
+                            );
+                        }
+                    });
+                }
+            });
+			// --- CHAPTER RING LOGIC ---
+            if (params.dialChapter !== 'none') {
+                let numMarks = parseInt(params.dialChapter);
+                for (let m = 0; m < numMarks; m++) {
+                    let angle = (m / numMarks) * Math.PI * 2 - (Math.PI / 2);
+                    
+                    // Automatically emphasize the hour positions by making them 50% longer
+                    let isMajor = (numMarks >= 60 && m % (numMarks / 12) === 0);
+                    let tickLength = isMajor ? params.chapterSize * 1.5 : params.chapterSize;
+                    
+                    let base_x1 = cx + params.chapterRadius * Math.cos(angle);
+                    let base_y1 = cy + params.chapterRadius * Math.sin(angle);
+                    let base_x2 = cx + (params.chapterRadius + tickLength) * Math.cos(angle);
+                    let base_y2 = cy + (params.chapterRadius + tickLength) * Math.sin(angle);
+
+                    let draftingIntensity = params.dialDrafting;
+                    let passes = draftingIntensity > 0 ? 3 : 1; 
+
+                    for (let pass = 0; pass < passes; pass++) {
+                        let x1 = base_x1; let y1 = base_y1;
+                        let x2 = base_x2; let y2 = base_y2;
+
+                        if (draftingIntensity > 0) {
+                            // Use a completely different seed space (5000+) so random offsets don't visually correlate with the numbers
+                            let seed = 5000 + m * 10 + pass; 
+                            let rand1 = Math.abs(Math.sin(seed++) * 10000) % 1;
+                            let rand2 = Math.abs(Math.sin(seed++) * 10000) % 1;
+                            let rand3 = Math.abs(Math.sin(seed++) * 10000) % 1;
+
+                            let dx = x2 - x1;
+                            let dy = y2 - y1;
+                            
+                            // Overshoot ends
+                            let overshoot = 0.05 * draftingIntensity + (rand1 * 0.25 * draftingIntensity);
+                            x1 = x1 - (dx * overshoot);
+                            y1 = y1 - (dy * overshoot);
+                            x2 = x2 + (dx * overshoot);
+                            y2 = y2 + (dy * overshoot);
+
+                            // Lateral drift for extra passes
+                            if (pass > 0) {
+                                let driftX = (rand2 - 0.5) * tickLength * 0.15 * draftingIntensity;
+                                let driftY = (rand3 - 0.5) * tickLength * 0.15 * draftingIntensity;
+                                x1 += driftX; y1 += driftY;
+                                x2 += driftX; y2 += driftY;
+                            }
+                        }
+
+                        // Reduce the wave amplitude slightly for the ticks so they remain structural and crisp
+                        let charCurve = params.curveAmt * 0.1;
+                        let charWaveAmp = params.wAmp * params.dialWaveAmp * 0.5;
+						let charWaveFreq = params.wFreq * params.dialWaveFreq;
+
+                        processCurve(
+                            x1, y1, x2, y2, 
+                            params.color, params.width, charCurve, params.dashStyle, params.erosionAmt, 
+                            m, numMarks, params.htSize, params.htFalloff, frameFPhase, 
+                            cx, cy, params.chapterRadius + tickLength, params.wType, charWaveAmp, charWaveFreq, frameWPhase, 
+                            isCanvasTarget, targetLayer, trailOpacity
+                        );
+                    }
+                }
+            }
+        }
+		
         function drawLiveCanvas(forceWPhase = null, forceFPhase = null, exportCtx = null, exportSize = 1080) {
             let logicalSize = exportCtx ? exportSize : resizeCanvas();
             let zoom = parseFloat(zoomValue.value);
@@ -1011,7 +1283,26 @@
             let baseWSpeed = parseFloat(animSpeed.value); let baseFSpeed = parseFloat(flowSpeed.value);
             let hasMotion = (baseWSpeed !== 0 && wType !== 'none') || (baseFSpeed !== 0 && dashStyle !== 'solid');
             let effectiveTrailFrames = hasMotion ? tFrames : 0;
+			// Add this just before the "for (let trail = effectiveTrailFrames..." loop
+            let dialParams = {
+                dialMarkers: dialMarkers.value,
+                dialRadius: parseFloat(dialRadius.value) * scale,
+                dialSize: parseFloat(dialSize.value) * scale,
+				dialWaveAmp: parseFloat(dialWaveAmp.value),
+				dialWaveFreq: parseFloat(dialWaveFreq.value),
+				dialDrafting: parseFloat(dialDrafting.value),
+				dialOvershoot: parseFloat(dialOvershoot.value), 
+                dialDrift: parseFloat(dialDrift.value),
+				dialChapter: dialChapter.value, 
+                chapterRadius: parseFloat(chapterRadius.value) * scale,
+                chapterSize: parseFloat(chapterSize.value) * scale,
+                color: color, width: width, dashStyle: dashStyle,
+                erosionAmt: erosionAmt, curveAmt: curveAmt,
+                htSize: htSize, htFalloff: htFalloff,
+                wType: wType, wAmp: wAmp, wFreq: wFreq
+            };
 
+            
             for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
                 let offsetMultiplier = trail * tSpacing;
                 let frameWPhase = wPhase;
@@ -1022,7 +1313,11 @@
                 if (trailOpacity <= 0.01 && trail > 0) continue;
 
                 buildGeometry(true, baseCtx, style, steps, cx, cy, r, curveAmt, color, width, dashStyle, erosionAmt, htSize, htFalloff, wType, wAmp, wFreq, frameWPhase, frameFPhase, trailOpacity, scale);
-            }
+				// Wrap the existing dial call in this condition
+                if (!dialIsolate.checked) {
+				drawDialLayer(true, baseCtx, cx, cy, trailOpacity, frameWPhase, frameFPhase, dialParams);
+				}
+			}
 
             let lMode = document.getElementById('layoutMode').value;
             let iterations = 1;
@@ -1039,10 +1334,15 @@
             let rotation = parseInt(globalRotation.value) * (Math.PI / 180);
 
             currentCtx.save();
-            if (!exportCtx) currentCtx.scale(viewScale, viewScale); 
-            if (exportCtx) currentCtx.scale(exportSize/500, exportSize/500);
+				// 1. Scale the logical space to fit the physical/export target
+				let physicalScale = logicalSize / 500;
+				currentCtx.scale(physicalScale, physicalScale); 
 
-            currentCtx.translate(250, 250); currentCtx.rotate(rotation); currentCtx.translate(-250, -250);
+				// 2. Apply Zoom and Global Rotation from the absolute center
+				currentCtx.translate(250, 250); 
+				currentCtx.scale(zoom, zoom);
+				currentCtx.rotate(rotation); 
+				currentCtx.translate(-250, -250);
 
             for (let i = 0; i < iterations; i++) {
                 currentCtx.save();
@@ -1072,6 +1372,29 @@
                 }
                 currentCtx.restore();
             }
+			// If isolated, draw the dial layer directly to the final context after all clones are placed
+            if (dialIsolate.checked) {
+                currentCtx.save();
+                
+                // Temporarily counter-rotate the canvas so the dial remains perfectly upright
+                currentCtx.translate(250, 250);
+                currentCtx.rotate(-rotation);
+                currentCtx.translate(-250, -250);
+
+                for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
+                    let offsetMultiplier = trail * tSpacing;
+                    let frameWPhase = wPhase;
+                    if (baseWSpeed !== 0 && wType !== 'none') frameWPhase = (((wPhase - (baseWSpeed * offsetMultiplier)) % 360) + 360) % 360;
+                    let frameFPhase = fPhase;
+                    if (baseFSpeed !== 0 && dashStyle !== 'solid') frameFPhase = (((fPhase - (baseFSpeed * offsetMultiplier / 100.0)) % 1.0) + 1.0) % 1.0;
+                    let trailOpacity = (effectiveTrailFrames === 0) ? 1.0 : 1.0 - Math.pow(trail / effectiveTrailFrames, 1.2);
+                    if (trailOpacity <= 0.01 && trail > 0) continue;
+
+                    drawDialLayer(true, currentCtx, cx, cy, trailOpacity, frameWPhase, frameFPhase, dialParams);
+                }
+                
+                currentCtx.restore();
+            }
             currentCtx.restore();
         }
 
@@ -1080,8 +1403,8 @@
             
             let style = styleSelect.value; let steps = parseInt(linesCount.value); let curveAmt = parseFloat(curveAmountInput.value);
             let erosionAmt = parseFloat(erosionAmountInput.value); let background = bgColor.value; let color = lineColor.value;
-            let width = parseFloat(lineWidth.value); let scale = parseFloat(scaleValue.value); 
-            let mirror = mirrorSymmetry.checked; let rotation = parseInt(globalRotation.value); let offX = parseInt(offsetInputX.value);
+            let width = parseFloat(lineWidth.value); let scale = parseFloat(scaleValue.value); let zoom = parseFloat(zoomValue.value);
+			let mirror = mirrorSymmetry.checked; let rotation = parseInt(globalRotation.value); let offX = parseInt(offsetInputX.value);
             let offY = parseInt(offsetInputY.value); let dashStyle = lineStyle.value; let htSize = parseFloat(halftoneSize.value);
             let htFalloff = parseFloat(halftoneFalloff.value); let fPhase = parseFloat(flowPhase.value) / 100.0;
             let wType = waveType.value; let wAmp = parseFloat(waveAmp.value); let wFreq = parseFloat(waveFreq.value); let wPhase = parseFloat(wavePhase.value);
@@ -1109,12 +1432,29 @@
             baseLayer.setAttribute('id', 'base-layer-export');
             defs.appendChild(baseLayer); exportSvg.appendChild(defs);
 
-            let mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            mainGroup.setAttribute('transform', `rotate(${rotation}, 250, 250)`);
-            exportSvg.appendChild(mainGroup);
+			  let mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+			// Apply zoom and rotation around the center coordinates
+			mainGroup.setAttribute('transform', `translate(250, 250) scale(${zoom}) rotate(${rotation}) translate(-250, -250)`);
+			exportSvg.appendChild(mainGroup);
 
             let cx = 250 + offX; let cy = 250 + offY; let r = 230 * scale; 
-
+			// Define params for the SVG export
+            let dialParams = {
+                dialMarkers: dialMarkers.value,
+                dialRadius: parseFloat(dialRadius.value) * scale,
+                dialSize: parseFloat(dialSize.value) * scale,
+				dialWaveAmp: parseFloat(dialWaveAmp.value),
+				dialDrafting: parseFloat(dialDrafting.value),
+                dialOvershoot: parseFloat(dialOvershoot.value),
+                dialDrift: parseFloat(dialDrift.value), 
+                dialChapter: dialChapter.value,
+                chapterRadius: parseFloat(chapterRadius.value) * scale,
+                chapterSize: parseFloat(chapterSize.value) * scale,
+                color: color, width: width, dashStyle: dashStyle,
+                erosionAmt: erosionAmt, curveAmt: curveAmt,
+                htSize: htSize, htFalloff: htFalloff,
+                wType: wType, wAmp: wAmp, wFreq: wFreq
+            };
             for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
                 let offsetMultiplier = trail * tSpacing;
                 let frameWPhase = wPhase;
@@ -1128,7 +1468,10 @@
                 let group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 baseLayer.appendChild(group);
                 buildGeometry(false, group, style, steps, cx, cy, r, curveAmt, color, width, dashStyle, erosionAmt, htSize, htFalloff, wType, wAmp, wFreq, frameWPhase, frameFPhase, trailOpacity, scale);
-            }
+				if (!dialIsolate.checked) {
+				drawDialLayer(false, group, cx, cy, trailOpacity, frameWPhase, frameFPhase, dialParams);
+				}
+			}
 
             let lMode = layoutMode.value;
             let iterations = 1;
@@ -1171,7 +1514,28 @@
                     mainGroup.appendChild(mirClone);
                 }
             }
-            
+            // If isolated, append the dial to a NEW top-level group that respects zoom and translation, but ignores global rotation
+            if (dialIsolate.checked) {
+                let unrotatedGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                unrotatedGroup.setAttribute('transform', `translate(250, 250) scale(${zoom}) translate(-250, -250)`);
+                exportSvg.appendChild(unrotatedGroup);
+
+                for (let trail = effectiveTrailFrames; trail >= 0; trail--) {
+                    let offsetMultiplier = trail * tSpacing;
+                    let frameWPhase = wPhase;
+                    if (baseWSpeed !== 0 && wType !== 'none') frameWPhase = (((wPhase - (baseWSpeed * offsetMultiplier)) % 360) + 360) % 360;
+                    let frameFPhase = fPhase;
+                    if (baseFSpeed !== 0 && dashStyle !== 'solid') frameFPhase = (((fPhase - (baseFSpeed * offsetMultiplier / 100.0)) % 1.0) + 1.0) % 1.0;
+                    let trailOpacity = (effectiveTrailFrames === 0) ? 1.0 : 1.0 - Math.pow(trail / effectiveTrailFrames, 1.2);
+                    if (trailOpacity <= 0.01 && trail > 0) continue;
+
+                    let isolatedGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    drawDialLayer(false, isolatedGroup, cx, cy, trailOpacity, frameWPhase, frameFPhase, dialParams);
+                    
+                    // Append to the unrotated group instead of the mainGroup
+                    unrotatedGroup.appendChild(isolatedGroup);
+                }
+            }
             const serializer = new XMLSerializer();
             let source = '<?xml version="1.0" standalone="no"?>\r\n' + serializer.serializeToString(exportSvg);
             const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml;charset=utf-8" }));
@@ -1544,7 +1908,16 @@
             document.getElementById('widthVal').innerText = parseFloat(lineWidth.value).toFixed(1);
             document.getElementById('trailFramesVal').innerText = trailFrames.value;
             document.getElementById('trailSpacingVal').innerText = parseFloat(trailSpacing.value).toFixed(1);
-
+			document.getElementById('dialRadiusVal').innerText = dialRadius.value;
+            document.getElementById('dialSizeVal').innerText = dialSize.value;
+			document.getElementById('dialWaveVal').innerText = parseFloat(dialWaveAmp.value).toFixed(2); 
+			document.getElementById('dialFreqVal').innerText = parseFloat(dialWaveFreq.value).toFixed(2);
+			document.getElementById('dialDraftingVal').innerText = parseFloat(dialDrafting.value).toFixed(2);
+			document.getElementById('dialOvershootVal').innerText = parseFloat(dialOvershoot.value).toFixed(2); // <-- Add this
+            document.getElementById('dialDriftVal').innerText = parseFloat(dialDrift.value).toFixed(2);
+			document.getElementById('chapterRadiusVal').innerText = chapterRadius.value; 
+            document.getElementById('chapterSizeVal').innerText = chapterSize.value;
+			
             let style = styleSelect.value;
             let dashStyle = lineStyle.value;
             let wType = waveType.value;
